@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemini TTS Studio</title>
+<style>
+:root{
+  --bg:#fff;--text:#1a1a1a;--muted:#6f6f6f;--line:#e8e8e8;--field:#fff;--soft:#f1f1f1;--soft-h:#e7e7e7;
+  --btn:#1a1a1a;--btn-t:#fff;--btn-h:#000;--link:#1a5fb4;--track:#e6eef8;--bar:#6aa9e9;--bar-hi:#c53030;
+  --ok:#1f8a4c;--warn:#b45309;--err:#c53030;--focus:#2b7de0;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#1f1f1e;--text:#ececec;--muted:#9a9a98;--line:#33332f;--field:#262625;--soft:#2d2d2b;--soft-h:#383836;
+  --btn:#ececec;--btn-t:#1a1a1a;--btn-h:#fff;--link:#6aa9e9;--track:#2c3440;--bar:#4f8fd6;--bar-hi:#e05b5b;
+  --ok:#4cc38a;--warn:#e0a23c;--err:#e05b5b;
+}}
+*{box-sizing:border-box;margin:0}
+body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:28px 16px;display:flex;justify-content:center}
+.app{width:100%;max-width:640px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
+h1{font-size:19px;font-weight:600}
+h2{font-size:15px;font-weight:600}
+section{padding:20px 0;border-top:1px solid var(--line)}
+section:first-of-type{border-top:0;padding-top:0}
+.stack{display:flex;flex-direction:column;gap:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+label,.lbl{font-size:13px;color:var(--muted)}
+input,select,textarea,button{font:inherit;color:inherit}
+input[type=password],input[type=text],select,textarea{width:100%;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(43,125,224,.15)}
+textarea{resize:vertical;min-height:140px;line-height:1.55}
+select{cursor:pointer}
+select.mini{width:auto;padding:6px 10px;font-size:13px;background:var(--soft);border-color:transparent}
+.keywrap{position:relative}
+.keywrap input{padding-right:38px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.eye{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;padding:6px 8px;color:var(--muted)}
+.head{display:flex;justify-content:space-between;align-items:baseline}
+a{color:var(--link);text-decoration:none;font-size:13px}a:hover{text-decoration:underline}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{background:var(--soft);border:0;border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;color:var(--text);transition:background .15s}
+.chip:hover{background:var(--soft-h)}
+.chip.on{background:var(--btn);color:var(--btn-t);font-weight:500}
+.sp{flex:1}
+.count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:8px}
+.btn{border:0;background:var(--soft);border-radius:10px;padding:0 20px;height:42px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--soft-h)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--btn);color:var(--btn-t);flex:1}
+.btn.primary:hover:not(:disabled){background:var(--btn-h)}
+audio{width:100%;height:40px;display:none}
+audio.on{display:block}
+.toast{font-size:14px;display:none}
+.toast.show{display:block}
+.toast.error{color:var(--err)}.toast.success{color:var(--ok)}.toast.warning{color:var(--warn)}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:s .7s linear infinite;display:none}
+.loading .spin{display:inline-block}
+@keyframes s{to{transform:rotate(360deg)}}
+.heads{font-weight:600;font-size:14px;margin-bottom:14px;display:none}
+.heads.show{display:block}
+.usage{display:grid;grid-template-columns:minmax(120px,190px) 1fr 108px;gap:16px 16px;align-items:center}
+.usage .name{font-size:14px}
+.usage .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.bar{height:8px;border-radius:99px;background:var(--track);overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--bar);transition:width .3s,background .3s}
+.bar i.hi{background:var(--bar-hi)}
+.pct{text-align:right;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media (max-width:520px){.usage{grid-template-columns:1fr auto}.usage .bar{grid-column:1/-1;order:3;margin-top:-8px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>Gemini TTS Studio</h1>
+    <select id="tier" class="mini" title="Тариф">
+      <option value="15">Free · 15 в минуту</option>
+      <option value="60">Pay-as-you-go · 60 в минуту</option>
+    </select>
+  </header>
+
+  <section class="stack">
+    <div class="field">
+      <div class="head"><label for="key">API-ключ Gemini</label><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Получить ключ</a></div>
+      <div class="keywrap">
+        <input type="password" id="key" placeholder="AIzaSy…" autocomplete="off">
+        <button class="eye" id="eye" type="button" title="Показать / скрыть">👁</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="voice">Голос</label>
+      <select id="voice"></select>
+    </div>
+
+    <div class="field">
+      <div class="chips">
+        <span class="lbl">Пример</span>
+        <button class="chip" data-l="ru" data-t="Привет! Кажется, нейросети научились говорить интонационно красиво.">Русский</button>
+        <button class="chip" data-l="pl" data-t="Cześć! Dzisiaj jest piękny dzień na naukę nowego języka.">Польский</button>
+        <button class="chip" data-l="en" data-t="Hello there! Gemini text-to-speech sounds astonishingly natural.">English</button>
+        <span class="sp"></span>
+        <span class="count" id="count">0 симв.</span>
+      </div>
+      <textarea id="text" placeholder="Введите текст для озвучки…"></textarea>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="gen"><span class="spin"></span><span id="genText">Озвучить</span></button>
+      <button class="btn" id="dl" disabled>Скачать WAV</button>
+    </div>
+    <audio id="player" controls></audio>
+    <div class="toast" id="toast"></div>
+  </section>
+
+  <section>
+    <h2 style="margin-bottom:14px">Лимиты использования</h2>
+    <div class="heads" id="heads"></div>
+    <div class="usage">
+      <div><div class="name">Запросы</div><div class="sub" id="rpmSub">Окно 60 сек</div></div>
+      <div class="bar"><i id="rpmBar"></i></div>
+      <div class="pct" id="rpmPct">0% использовано</div>
+
+      <div><div class="name">Пауза</div><div class="sub">Между запросами 4 сек</div></div>
+      <div class="bar"><i id="cdBar"></i></div>
+      <div class="pct" id="cdPct">готов</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const VOICES=[
+  ["Puck","мужской","энергичный"],["Charon","мужской","глубокий"],
+  ["Kore","женский","уверенный"],["Fenrir","мужской","воодушевлённый"],
+  ["Aoede","женский","лёгкий"],["Leda","женский","молодой"],
+  ["Zephyr","женский","яркий"],["Orpheus","мужской","мягкий"],
+  ["Algenib","мужской","с хрипотцой"],["Algieba","мужской","дикторский"]
+];
+const COOLDOWN=4000;
+const $=id=>document.getElementById(id);
+const el={key:$('key'),voice:$('voice'),text:$('text'),gen:$('gen'),dl:$('dl'),player:$('player'),toast:$('toast'),tier:$('tier')};
+let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='';
+
+el.voice.innerHTML=VOICES.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}, ${v[2]}</option>`).join('');
+
+const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+try{
+  el.key.value=localStorage.getItem('gtts_key')||'';
+  const v=localStorage.getItem('gtts_voice');if(v)el.voice.value=v;
+  const t=localStorage.getItem('gtts_tier');if(t){el.tier.value=t;maxRPM=+t}
+}catch(e){}
+el.key.addEventListener('input',()=>save('gtts_key',el.key.value.trim()));
+el.voice.addEventListener('change',()=>save('gtts_voice',el.voice.value));
+el.tier.addEventListener('change',()=>{maxRPM=+el.tier.value;save('gtts_tier',el.tier.value);tick()});
+$('eye').onclick=()=>{el.key.type=el.key.type==='password'?'text':'password'};
+
+const chips=[...document.querySelectorAll('.chip')];
+function setChip(lang){
+  chips.forEach(c=>{const on=c.dataset.l===lang;c.classList.toggle('on',on);c.setAttribute('aria-pressed',on)});
+  save('gtts_lang',lang||'');
+}
+chips.forEach(c=>c.onclick=()=>{
+  if(c.classList.contains('on')){setChip('');return}
+  setChip(c.dataset.l);
+  el.text.value=c.dataset.t;count();
+});
+try{
+  const l=localStorage.getItem('gtts_lang');
+  const c=chips.find(x=>x.dataset.l===l);
+  if(c){setChip(l);if(!el.text.value){el.text.value=c.dataset.t;count()}}
+}catch(e){}
+
+el.text.addEventListener('input',count);
+function count(){$('count').textContent=el.text.value.length+' симв.'}
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')generate()});
+
+function toast(msg,type){
+  el.toast.className='toast show '+(type||'');
+  el.toast.textContent=msg;
+  if(type==='success')setTimeout(()=>{if(el.toast.textContent===msg)el.toast.className='toast'},4000);
+}
+
+function tick(){
+  const now=Date.now();
+  stamps=stamps.filter(t=>now-t<60000);
+  const p=Math.min(100,Math.round(stamps.length/maxRPM*100));
+  const reset=stamps.length?Math.ceil((60000-(now-stamps[0]))/1000):0;
+  $('rpmPct').textContent=`${stamps.length} из ${maxRPM} · ${p}%`;
+  $('rpmSub').textContent=reset?`Сброс через ${reset} сек`:'Окно 60 сек';
+  $('rpmBar').style.width=p+'%';
+  $('rpmBar').classList.toggle('hi',p>=85);
+  const h=$('heads');
+  if(p>=85){
+    h.textContent=`Внимание. Лимит запросов почти исчерпан, следующий слот освободится через ${reset} сек.`;
+    h.classList.add('show');
+  }else h.classList.remove('show');
+  const cd=Math.max(0,cdEnd-now);
+  $('cdBar').style.width=(cd/COOLDOWN*100)+'%';
+  $('cdPct').textContent=cd>0?(cd/1000).toFixed(1)+' сек':'готов';
+}
+setInterval(tick,200);tick();
+
+function b64ToBytes(b64){
+  const s=atob(b64),u=new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);
+  return u;
+}
+function pcmToWav(pcm,rate){
+  const n=pcm.length*2,buf=new ArrayBuffer(44+n),v=new DataView(buf);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+n,true);w(8,'WAVE');w(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);
+  w(36,'data');v.setUint32(40,n,true);
+  for(let i=0;i<pcm.length;i++)v.setInt16(44+i*2,pcm[i],true);
+  return new Blob([buf],{type:'audio/wav'});
+}
+function setBusy(b){
+  el.gen.disabled=b;
+  el.gen.classList.toggle('loading',b);
+  $('genText').textContent=b?'Генерация…':'Озвучить';
+}
+
+async function generate(){
+  if(el.gen.disabled)return;
+  const key=el.key.value.trim(),text=el.text.value.trim(),voice=el.voice.value,now=Date.now();
+  if(!key){toast('Введите API-ключ Gemini.','error');el.key.focus();return}
+  if(!text){toast('Введите текст для озвучки.','error');el.text.focus();return}
+  stamps=stamps.filter(t=>now-t<60000);
+  if(stamps.length>=maxRPM){toast('Лимит запросов в минуту исчерпан. Подождите.','error');return}
+  if(now<cdEnd){toast('Подождите '+((cdEnd-now)/1000).toFixed(1)+' сек.','warning');return}
+
+  stamps.push(now);cdEnd=now+COOLDOWN;tick();
+  setBusy(true);toast('Отправка запроса…');
+  try{
+    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-goog-api-key':key},
+      body:JSON.stringify({
+        contents:[{parts:[{text}]}],
+        generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
+      })
+    });
+    if(!res.ok){
+      let m='Ошибка сервера ('+res.status+')';
+      try{m=(await res.json()).error.message||m}catch(e){}
+      throw new Error(m);
+    }
+    const data=await res.json();
+    let part=null;
+    for(const c of data.candidates||[])for(const p of c.content?.parts||[])if(p.inlineData?.data&&!part)part=p.inlineData;
+    if(!part)throw new Error('API не вернуло аудио.');
+    const rate=+((part.mimeType||'').match(/rate=(\d+)/)?.[1]||24000);
+    const bytes=b64ToBytes(part.data);
+    lastBlob=pcmToWav(new Int16Array(bytes.buffer,0,bytes.length>>1),rate);
+    lastVoice=voice;
+    if(lastUrl)URL.revokeObjectURL(lastUrl);
+    lastUrl=URL.createObjectURL(lastBlob);
+    el.player.src=lastUrl;
+    el.player.classList.add('on');
+    el.dl.disabled=false;
+    el.player.play().catch(()=>{});
+    toast('Готово. Голос: '+voice,'success');
+  }catch(err){
+    console.error(err);
+    toast('Ошибка: '+err.message,'error');
+  }finally{
+    setBusy(false);
+  }
+}
+
+function download(){
+  if(!lastBlob)return;
+  const a=document.createElement('a'),d=new Date(),p=n=>String(n).padStart(2,'0');
+  a.href=lastUrl;
+  a.download=`tts_${lastVoice}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.wav`;
+  document.body.appendChild(a);a.click();a.remove();
+}
+el.gen.onclick=generate;
+el.dl.onclick=download;
+</script>
+</body>
+</html>
