@@ -84,7 +84,7 @@ audio.on{display:block}
     <div class="field">
       <div class="head"><label for="key">API-ключ Gemini</label><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Получить ключ</a></div>
       <div class="keywrap">
-        <input type="password" id="key" placeholder="AIzaSy…" autocomplete="off">
+        <input type="password" id="key" name="gemini-api-key-field" placeholder="AIzaSy…" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
         <button class="eye" id="eye" type="button" title="Показать / скрыть">👁</button>
       </div>
     </div>
@@ -127,6 +127,13 @@ audio.on{display:block}
       <div class="pct" id="cdPct">готов</div>
     </div>
   </section>
+
+  <section style="padding-bottom:0">
+    <div class="head" style="align-items:center">
+      <div><div class="name" style="font-size:14px">Сохранённые данные</div><div class="sub" style="font-size:12px;color:var(--muted);margin-top:2px">Ключ, голос, тариф и язык хранятся в браузере</div></div>
+      <button class="btn" id="reset" style="height:36px;padding:0 14px;font-size:14px">Очистить</button>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -150,7 +157,13 @@ try{
   const v=localStorage.getItem('gtts_voice');if(v)el.voice.value=v;
   const t=localStorage.getItem('gtts_tier');if(t){el.tier.value=t;maxRPM=+t}
 }catch(e){}
-el.key.addEventListener('input',()=>save('gtts_key',el.key.value.trim()));
+const saveKey=()=>save('gtts_key',el.key.value.trim());
+el.key.addEventListener('input',saveKey);
+el.key.addEventListener('change',saveKey);
+// браузер мог подставить свой пароль после загрузки — возвращаем сохранённый ключ
+window.addEventListener('load',()=>setTimeout(()=>{
+  try{const k=localStorage.getItem('gtts_key');if(k&&el.key.value!==k)el.key.value=k}catch(e){}
+},400));
 el.voice.addEventListener('change',()=>save('gtts_voice',el.voice.value));
 el.tier.addEventListener('change',()=>{maxRPM=+el.tier.value;save('gtts_tier',el.tier.value);tick()});
 $('eye').onclick=()=>{el.key.type=el.key.type==='password'?'text':'password'};
@@ -277,6 +290,14 @@ function download(){
   a.download=`tts_${lastVoice}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.wav`;
   document.body.appendChild(a);a.click();a.remove();
 }
+$('reset').onclick=()=>{
+  if(!confirm('Удалить сохранённые ключ, голос, тариф и язык?'))return;
+  ['gtts_key','gtts_voice','gtts_tier','gtts_lang'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
+  el.key.value='';el.voice.selectedIndex=0;el.tier.value='15';maxRPM=15;
+  setChip('');save('gtts_lang','');
+  try{localStorage.removeItem('gtts_lang')}catch(e){}
+  tick();toast('Сохранённые данные удалены.','success');
+};
 el.gen.onclick=generate;
 el.dl.onclick=download;
 </script>
