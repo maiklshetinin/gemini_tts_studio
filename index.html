@@ -122,6 +122,10 @@ audio.on{display:block}
 .plan{padding:2px 0 8px}
 .ph{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.ph span{color:var(--muted)}
 .pw{position:relative;display:flex;align-items:center;gap:1px;height:48px;cursor:pointer;touch-action:none;user-select:none}
+.pw .cut{position:absolute;top:-3px;bottom:-3px;width:16px;margin-left:-8px;cursor:ew-resize;z-index:2;touch-action:none;outline:none}
+.pw .cut::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:2px;border-radius:1px;background:var(--text);opacity:.5}
+.pw .cut::after{content:'';position:absolute;left:3px;top:50%;margin-top:-8px;width:10px;height:16px;border-radius:5px;background:var(--text);opacity:.75;box-shadow:0 0 0 2px var(--bg)}
+.pw .cut:hover::before,.pw .cut:hover::after,.pw .cut.drag::before,.pw .cut.drag::after,.pw .cut:focus-visible::before,.pw .cut:focus-visible::after{opacity:1}
 .pw .hd{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--text);border-radius:1px;display:none;pointer-events:none;left:0}
 .pw s{flex:1;min-width:1px;border-radius:2px;background:var(--wf);display:block;text-decoration:none}
 .pn{position:relative;height:16px;margin-top:3px;font-size:11px;font-weight:600}
@@ -841,13 +845,11 @@ async function generate(){
     lastBlob=pcmToWav(pcm,rate);lastVoice=voice;lastText=text;fullPcm=pcm;fullRate=rate;
     if(lastUrl)URL.revokeObjectURL(lastUrl);
     lastUrl=URL.createObjectURL(lastBlob);
-    items.forEach(o=>{o.au.pause();URL.revokeObjectURL(o.url)});
+    partTexts=multi?lines:[text];
+    splitInfo=null;
     const ranges=multi?split(pcm,rate,lines):[[0,pcm.length]];
-    items=ranges.map((r,i)=>{
-      const sl=pcm.slice(r[0],r[1]),bl=pcmToWav(sl,rate);
-      return{r,blob:bl,text:multi?(lines[i]||''):text,url:URL.createObjectURL(bl),pk:peaks(sl,80),dur:sl.length/rate};
-    });
-    plan={pk:peaks(pcm,110),n:pcm.length,total:pcm.length/rate};
+    buildItems(ranges);
+    plan={pk:peaks(pcm,200),n:pcm.length,total:pcm.length/rate};
     render();
     el.dl.disabled=false;$('dlAll').hidden=items.length<2;
     if(items.length===1)items[0].au.play().catch(()=>{});
@@ -945,9 +947,23 @@ function split(pcm,rate,lines){
     if(r&&(!best||r.cost<best.cost))best=r;
   }
   const cuts=best?best.cuts:exp.map(Math.round);       // запасной вариант: пропорционально тексту
-  // Финальная обрезка: от каждого разреза отступаем, пока не кончится тишина —
-  // так пауза-разрыв целиком удаляется и не прилипает ни к одной из частей.
-  const th=p90*.08,out=[];let prev=0;
+  splitInfo={e,p90,fr,nf,cuts:[...cuts]};              // запоминаем — границы потом можно двигать руками
+  return trimRanges(splitInfo.cuts);
+}
+let splitInfo=null,partTexts=[];
+// Собирает фрагменты (WAV-блобы, волны, длительности) из диапазонов — и после разрезки, и после ручной правки границ.
+function buildItems(ranges){
+  items.forEach(o=>{if(o.au)o.au.pause();URL.revokeObjectURL(o.url)});
+  items=ranges.map((r,i)=>{
+    const sl=fullPcm.slice(r[0],r[1]),bl=pcmToWav(sl,fullRate);
+    return{r,blob:bl,text:partTexts[i]||'',url:URL.createObjectURL(bl),pk:peaks(sl,80),dur:sl.length/fullRate};
+  });
+}
+// Финальная обрезка: от каждого разреза отступаем, пока не кончится тишина —
+// так пауза-разрыв целиком удаляется и не прилипает ни к одной из частей.
+// Если границу вручную поставили внутрь речи, обрезать нечего — режется ровно там.
+function trimRanges(cuts){
+  const{e,p90,fr,nf}=splitInfo,th=p90*.08,out=[];let prev=0;
   [...cuts,nf].forEach(c=>{
     let a=prev,b=c;
     while(a<b&&e[a]<th)a++;
@@ -971,7 +987,51 @@ function planHTML(){
     return`<s data-i="${ix}" style="height:${Math.max(8,Math.round(v*100))}%;${ix<0?'':'background:'+col(ix)}"></s>`;
   }).join('');
   const labs=items.map((o,i)=>`<span style="left:${(o.r[0]+o.r[1])/2/plan.n*100}%;color:${col(i)}">${getStartNum()+i}</span>`).join('');
-  return`<div class="plan"><div class="ph"><b>План разрезки</b><span>${items.length} ${items.length<5?'части':'частей'} · ${fmt(plan.total)}</span></div><div class="pw" id="pw"><i class="hd"></i>${bars}</div><div class="pn">${labs}</div></div>`;
+  const cutsHTML=splitInfo?splitInfo.cuts.map((c,k)=>`<i class="cut" data-k="${k}" tabindex="0" title="Потяни, чтобы сдвинуть границу (← → — точнее)" style="left:${c*splitInfo.fr/plan.n*100}%"></i>`).join(''):'';
+  const tip=splitInfo?'<div class="hint" style="margin-top:6px">Разрезано неточно? Потяни границу (ползунок на плане) мышью или пальцем, для точной подстройки — стрелки ← →.</div>':'';
+  return`<div class="plan"><div class="ph"><b>План разрезки</b><span>${items.length} ${items.length<5?'части':'частей'} · ${fmt(plan.total)}</span></div><div class="pw" id="pw"><i class="hd"></i>${bars}${cutsHTML}</div><div class="pn">${labs}</div>${tip}</div>`;
+}
+// Перекрашивает план по текущим диапазонам (пока границу тянут — без пересборки аудио).
+function paintPlan(pw,rg){
+  const n=plan.pk.length;
+  pw.querySelectorAll('s').forEach((b,k)=>{
+    const pos=(k+.5)/n*plan.n,ix=rg.findIndex(o=>pos>=o[0]&&pos<o[1]);
+    b.style.background=ix<0?'':COLORS[ix%COLORS.length];
+  });
+  pw.parentNode.querySelectorAll('.pn span').forEach((s,i)=>{if(rg[i])s.style.left=(rg[i][0]+rg[i][1])/2/plan.n*100+'%'});
+}
+// Ручная правка границ: тянем ползунок мышью/пальцем или двигаем стрелками.
+function initCuts(pw){
+  const GAP=20;                                   // минимум 0,2 сек между соседними границами
+  pw.querySelectorAll('.cut').forEach(h=>{
+    const k=+h.dataset.k;let drag=false,timer=null;
+    const setCut=f=>{
+      const c=splitInfo.cuts;
+      const lo=(k?c[k-1]:0)+GAP,hi=(k<c.length-1?c[k+1]:splitInfo.nf)-GAP;
+      c[k]=Math.round(Math.min(hi,Math.max(lo,f)));
+      h.style.left=c[k]*splitInfo.fr/plan.n*100+'%';
+      paintPlan(pw,trimRanges(c));
+    };
+    const commit=()=>{
+      buildItems(trimRanges(splitInfo.cuts));
+      render();
+      const nh=document.querySelector(`.cut[data-k="${k}"]`);if(nh)nh.focus({preventScroll:true});
+    };
+    h.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();drag=true;h.classList.add('drag');try{h.setPointerCapture(e.pointerId)}catch(_){}});
+    h.addEventListener('pointermove',e=>{
+      if(!drag)return;
+      const r=pw.getBoundingClientRect();
+      setCut(Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*plan.n/splitInfo.fr);
+    });
+    const end=()=>{if(!drag)return;drag=false;h.classList.remove('drag');commit()};
+    h.addEventListener('pointerup',end);h.addEventListener('pointercancel',end);
+    h.addEventListener('keydown',e=>{
+      if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+      e.preventDefault();
+      setCut(splitInfo.cuts[k]+(e.key==='ArrowLeft'?-1:1)*(e.shiftKey?10:2));   // 20 мс, с Shift — 100 мс
+      clearTimeout(timer);timer=setTimeout(commit,350);
+    });
+  });
 }
 function render(){
   const res=$('res');res.innerHTML='';
@@ -1008,6 +1068,7 @@ function render(){
     res.appendChild(d);
   });
   const pw=$('pw');
+  if(pw&&splitInfo)initCuts(pw);
   // «План разрезки»: клик (или протяжка) перематывает ровно в ту позицию, куда ткнули,
   // и сразу играет оттуда; переход через границу частей переключает воспроизведение на соседний фрагмент.
   if(pw)scrub(pw,frac=>{
