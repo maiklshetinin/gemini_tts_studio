@@ -17,7 +17,7 @@
 }}
 *{box-sizing:border-box;margin:0}
 body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:28px 16px;display:flex;justify-content:center}
-.app{width:100%;max-width:640px}
+.app{width:100%;max-width:1440px}
 header{margin-bottom:10px}
 h1{font-size:16px;font-weight:600}
 h2{font-size:15px;font-weight:600}
@@ -121,14 +121,14 @@ audio.on{display:block}
 .sv svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block}
 .plan{padding:2px 0 8px}
 .ph{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.ph span{color:var(--muted)}
-.pw{position:relative;display:flex;align-items:center;gap:1px;height:48px;cursor:pointer;touch-action:none;user-select:none}
-.pw .cut{position:absolute;top:-3px;bottom:-3px;width:16px;margin-left:-8px;cursor:ew-resize;z-index:2;touch-action:none;outline:none}
-.pw .cut::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:2px;border-radius:1px;background:var(--text);opacity:.5}
-.pw .cut::after{content:'';position:absolute;left:3px;top:50%;margin-top:-8px;width:10px;height:16px;border-radius:5px;background:var(--text);opacity:.75;box-shadow:0 0 0 2px var(--bg)}
+.pw{position:relative;display:flex;align-items:center;gap:1px;height:110px;cursor:pointer;touch-action:none;user-select:none}
+.pw .cut{position:absolute;top:-6px;bottom:-6px;width:28px;margin-left:-14px;cursor:ew-resize;z-index:2;touch-action:none;outline:none}
+.pw .cut::before{content:'';position:absolute;left:13px;top:0;bottom:0;width:2px;border-radius:1px;background:var(--text);opacity:.5}
+.pw .cut::after{content:'';position:absolute;left:8px;top:50%;margin-top:-16px;width:12px;height:32px;border-radius:6px;background:var(--text);opacity:.75;box-shadow:0 0 0 2px var(--bg)}
 .pw .cut:hover::before,.pw .cut:hover::after,.pw .cut.drag::before,.pw .cut.drag::after,.pw .cut:focus-visible::before,.pw .cut:focus-visible::after{opacity:1}
 .pw .hd{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--text);border-radius:1px;display:none;pointer-events:none;left:0}
 .pw s{flex:1;min-width:1px;border-radius:2px;background:var(--wf);display:block;text-decoration:none}
-.pn{position:relative;height:16px;margin-top:3px;font-size:11px;font-weight:600}
+.pn{position:relative;height:20px;margin-top:4px;font-size:13px;font-weight:600}
 .pn span{position:absolute;transform:translateX(-50%)}
 
 .cells{display:flex;flex-direction:column;gap:8px}
@@ -856,7 +856,7 @@ async function generate(){
     splitInfo=null;
     const ranges=multi?split(pcm,rate,lines):[[0,pcm.length]];
     buildItems(ranges);
-    plan={pk:peaks(pcm,200),n:pcm.length,total:pcm.length/rate};
+    plan={pk:peaks(pcm,Math.min(480,Math.max(100,Math.floor((Math.min(innerWidth,1440)-32)/4)))),n:pcm.length,total:pcm.length/rate};
     render();
     el.dl.disabled=false;$('dlAll').hidden=items.length<2;
     if(items.length===1)items[0].au.play().catch(()=>{});
