@@ -354,7 +354,7 @@ async function generate(){
   if(!text){toast('Введите текст для озвучки.','error');taOf(cellList()[0]).focus();return}
   stamps=stamps.filter(t=>now-t<60000);
   const multi=lines.length>1;
-  const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join('\n'):text;
+  const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join('\n\n'):text;
   if(stamps.length>=maxRPM){toast('Лимит запросов в минуту исчерпан. Подождите.','error');return}
   if(now<cdEnd){toast('Подождите '+((cdEnd-now)/1000).toFixed(1)+' сек.','warning');return}
 
@@ -406,29 +406,45 @@ async function generate(){
 const PLAY='M8 5v14l11-7z',PAUSE='M7 5h4v14H7zM13 5h4v14h-4z';
 const fmt=x=>Math.floor(Math.round(x)/60)+':'+String(Math.round(x)%60).padStart(2,'0');
 
-// режем PCM по самым длинным паузам: N строк -> N-1 разрезов
+// Режем PCM на N частей. Кандидаты — паузы; выбираем N-1 из них так, чтобы
+// они шли по порядку, были подлиннее и стояли там, где их ждём по длине текста.
 function split(pcm,rate,lines){
   const N=lines.length;if(N<2)return[[0,pcm.length]];
   const fr=Math.round(rate/100),nf=Math.floor(pcm.length/fr),e=new Float32Array(nf);
   for(let i=0;i<nf;i++){let q=0;for(let j=i*fr;j<(i+1)*fr;j++){q+=pcm[j]*pcm[j]}e[i]=Math.sqrt(q/fr)}
   const p90=[...e].sort((x,y)=>x-y)[Math.floor(nf*.9)]||1;
+  const tot=lines.reduce((x,l)=>x+l.length,0)||1;
+  let c=0;const exp=lines.slice(0,-1).map(l=>nf*(c+=l.length)/tot);   // ожидаемые места разрезов
+  const sc=nf/N;                                                      // средняя длина части в кадрах
   let cuts=null;
-  for(const k of[.04,.08,.15,.25]){
-    const thr=p90*k,gaps=[];let st=-1;
+  for(const k of[.06,.1,.18,.3]){
+    const thr=p90*k,cand=[];let st=-1;
     for(let i=0;i<=nf;i++){
       const q=i<nf&&e[i]<thr;
       if(q&&st<0)st=i;
-      if(!q&&st>=0){if(st>0&&i<nf)gaps.push({a:st,b:i});st=-1}
+      if(!q&&st>=0){if(st>0&&i<nf&&i-st>=10)cand.push({pos:(st+i)>>1,len:Math.min((i-st)/100,2)});st=-1}
     }
-    if(gaps.length>=N-1){
-      cuts=gaps.sort((x,y)=>(y.b-y.a)-(x.b-x.a)).slice(0,N-1).map(g=>(g.a+g.b)>>1).sort((x,y)=>x-y);
-      break;
+    const M=cand.length;
+    if(M<N-1)continue;
+    // динамика: dp[k][j] — лучший счёт, если k-й разрез сделан в паузе j
+    const sco=(j,k)=>cand[j].len-1.5*Math.abs(cand[j].pos-exp[k])/sc;
+    let dp=cand.map((_,j)=>sco(j,0)),back=[];
+    for(let k=1;k<N-1;k++){
+      const nd=new Array(M).fill(-Infinity),bk=new Array(M).fill(-1);
+      let best=-Infinity,bi=-1;
+      for(let j=0;j<M;j++){
+        if(j>0&&dp[j-1]>best){best=dp[j-1];bi=j-1}
+        if(bi>=0){nd[j]=best+sco(j,k);bk[j]=bi}
+      }
+      dp=nd;back.push(bk);
     }
+    let j=0;for(let i=1;i<M;i++)if(dp[i]>dp[j])j=i;
+    if(dp[j]===-Infinity)continue;
+    cuts=[cand[j].pos];
+    for(let k=N-3;k>=0;k--){j=back[k][j];cuts.unshift(cand[j].pos)}
+    break;
   }
-  if(!cuts){ // запасной вариант: пропорционально длине строк
-    const tot=lines.reduce((x,l)=>x+l.length,0);let c=0;
-    cuts=lines.slice(0,-1).map(l=>Math.round(nf*(c+=l.length)/tot));
-  }
+  if(!cuts)cuts=exp.map(Math.round);   // запасной вариант: пропорционально тексту
   const th=p90*.08,out=[];let prev=0;
   [...cuts,nf].forEach(c=>{
     let a=prev,b=c;
