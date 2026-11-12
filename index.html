@@ -138,8 +138,13 @@ audio.on{display:block}
         <span class="count" id="count">0 симв.</span>
       </div>
       <div class="cells" id="cells"></div>
-      <button class="add" id="add" type="button">+ Добавить часть</button>
-      <div class="hint">Enter — перенос строки внутри части. Shift+Enter — разрезать часть в месте курсора, «+ Добавить часть» — новая пустая. Каждая часть станет отдельным файлом.</div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <button class="add" id="add" type="button">+ Добавить часть</button>
+        <label class="lbl" style="display:flex;align-items:center;gap:6px">Номер первой части
+          <input type="number" id="startNum" min="1" max="999" value="1" style="width:58px;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:13px;color:var(--text)">
+        </label>
+      </div>
+      <div class="hint">Enter — перенос строки внутри части. Shift+Enter — разрезать часть в месте курсора, «+ Добавить часть» — новая пустая. Каждая часть станет отдельным файлом. «Номер первой части» задаёт, с какого числа начинается нумерация файлов — остальные идут по порядку.</div>
     </div>
 
     <div class="actions">
@@ -495,7 +500,8 @@ const VOICES=[
 const COOLDOWN=4000;
 const COLORS=['#2b7de0','#e0603a','#2fa36b','#a855d6','#d99a1e','#d6457f','#1fa3b8','#7d8f1f'];
 const $=id=>document.getElementById(id);
-const el={key:$('key'),voice:$('voice'),gen:$('gen'),dl:$('dl'),toast:$('toast'),tier:$('tier'),fmt:$('fmt')};
+const el={key:$('key'),voice:$('voice'),gen:$('gen'),dl:$('dl'),toast:$('toast'),tier:$('tier'),fmt:$('fmt'),startNum:$('startNum')};
+const getStartNum=()=>{const n=parseInt(el.startNum.value,10);return(Number.isFinite(n)&&n>0)?n:1};
 let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='',items=[],plan=null,fullPcm=null,fullRate=24000;
 
 el.voice.innerHTML=VOICES.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}, ${v[2]}</option>`).join('');
@@ -505,7 +511,9 @@ try{
   el.key.value=localStorage.getItem('gtts_key')||'';
   const v=localStorage.getItem('gtts_voice');if(v)el.voice.value=v;
   const t=localStorage.getItem('gtts_tier');if(t){el.tier.value=t;maxRPM=+t}
+  const sn=localStorage.getItem('gtts_startnum');if(sn)el.startNum.value=sn;
 }catch(e){}
+el.startNum.addEventListener('input',()=>{save('gtts_startnum',el.startNum.value);refresh();if(items.length)render()});
 const saveKey=()=>save('gtts_key',el.key.value.trim());
 el.key.addEventListener('input',saveKey);
 el.key.addEventListener('change',saveKey);
@@ -544,9 +552,9 @@ function refresh(){
     const ta=taOf(c),t=joinLines(ta.value),num=c.querySelector('.num'),fn=c.querySelector('.fnm');
     grow(ta);
     if(t){
-      const i=k++;chars+=t.length;
+      const i=k++;chars+=t.length;const fileNum=getStartNum()+i;
       c.classList.remove('empty');c.style.setProperty('--c',COLORS[i%COLORS.length]);
-      num.textContent=i+1;fn.textContent=fileName(t,String(i+1).padStart(2,'0')+'_');
+      num.textContent=fileNum;fn.textContent=fileName(t,String(fileNum).padStart(2,'0')+'_');
     }else{
       c.classList.add('empty');c.style.removeProperty('--c');num.textContent='·';fn.textContent='';
     }
@@ -665,7 +673,11 @@ async function generate(){
   if(!text){toast('Введите текст для озвучки.','error');taOf(cellList()[0]).focus();return}
   stamps=stamps.filter(t=>now-t<60000);
   const multi=lines.length>1;
-  const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join('\n\n'):text;
+  // Между частями ставим заведомо длинный разрыв (маркер границы) — несколько пустых строк
+  // дают паузу длиннее любой естественной паузы внутри текста, и split() потом находит
+  // и вырезает именно её, а не случайную паузу внутри предложения.
+  const PART_GAP='\n\n\n\n';
+  const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join(PART_GAP):text;
   if(stamps.length>=maxRPM){toast('Лимит запросов в минуту исчерпан. Подождите.','error');return}
   if(now<cdEnd){toast('Подождите '+((cdEnd-now)/1000).toFixed(1)+' сек.','warning');return}
 
@@ -717,8 +729,13 @@ async function generate(){
 const PLAY='M8 5v14l11-7z',PAUSE='M7 5h4v14H7zM13 5h4v14h-4z';
 const fmt=x=>Math.floor(Math.round(x)/60)+':'+String(Math.round(x)%60).padStart(2,'0');
 
-// Режем PCM на N частей. Кандидаты — паузы; выбираем N-1 из них так, чтобы
-// они шли по порядку, были подлиннее и стояли там, где их ждём по длине текста.
+// Режем PCM на N частей. Между частями при отправке в TTS мы специально ставим
+// длинный разрыв-маркер (PART_GAP, см. generate()) — заведомо длиннее любой
+// естественной паузы внутри предложения. Поэтому границу ищем прежде всего
+// по ДЛИНЕ паузы (маркер почти всегда самая длинная пауза рядом с ожидаемым
+// местом разреза), а близость к ожидаемой позиции — лишь подсказка на случай
+// неоднозначности. Это и есть «вырезание символа-разделителя»: найденная
+// пауза-маркер целиком выбрасывается на этапе финальной обрезки ниже.
 function split(pcm,rate,lines){
   const N=lines.length;if(N<2)return[[0,pcm.length]];
   const fr=Math.round(rate/100),nf=Math.floor(pcm.length/fr),e=new Float32Array(nf);
@@ -733,12 +750,31 @@ function split(pcm,rate,lines){
     for(let i=0;i<=nf;i++){
       const q=i<nf&&e[i]<thr;
       if(q&&st<0)st=i;
-      if(!q&&st>=0){if(st>0&&i<nf&&i-st>=10)cand.push({pos:(st+i)>>1,len:Math.min((i-st)/100,2)});st=-1}
+      if(!q&&st>=0){if(st>0&&i<nf&&i-st>=10)cand.push({pos:(st+i)>>1,len:Math.min((i-st)/100,6)});st=-1}
     }
     const M=cand.length;
     if(M<N-1)continue;
-    // динамика: dp[k][j] — лучший счёт, если k-й разрез сделан в паузе j
-    const sco=(j,k)=>cand[j].len-1.5*Math.abs(cand[j].pos-exp[k])/sc;
+
+    // Попытка №1: маркер-граница почти всегда самая длинная пауза в своём окне —
+    // для каждой ожидаемой границы берём жадно самую длинную паузу в окрестности
+    // и проверяем, что порядок не нарушился (разрезы идут по возрастанию).
+    const win=sc*.7;
+    const greedy=exp.map(x=>{
+      let best=-1,bestScore=-Infinity;
+      cand.forEach((cc,j)=>{
+        if(Math.abs(cc.pos-x)>win)return;
+        const s=cc.len*1E6-Math.abs(cc.pos-x);   // длина решает почти всё, позиция — тай-брейк
+        if(s>bestScore){bestScore=s;best=j}
+      });
+      return best;
+    });
+    if(greedy.every(j=>j>=0)&&greedy.every((j,i)=>i===0||cand[j].pos>cand[greedy[i-1]].pos)){
+      cuts=greedy.map(j=>cand[j].pos);
+      break;
+    }
+
+    // Попытка №2: динамика с приоритетом длины паузы (маркера) над позицией.
+    const sco=(j,k)=>cand[j].len*2.2-Math.abs(cand[j].pos-exp[k])/sc;
     let dp=cand.map((_,j)=>sco(j,0)),back=[];
     for(let k=1;k<N-1;k++){
       const nd=new Array(M).fill(-Infinity),bk=new Array(M).fill(-1);
@@ -756,6 +792,8 @@ function split(pcm,rate,lines){
     break;
   }
   if(!cuts)cuts=exp.map(Math.round);   // запасной вариант: пропорционально тексту
+  // Финальная обрезка: от каждого разреза отступаем во все стороны, пока не кончится
+  // тишина — так пауза-маркер целиком удаляется и не прилипает ни к одной из частей.
   const th=p90*.08,out=[];let prev=0;
   [...cuts,nf].forEach(c=>{
     let a=prev,b=c;
@@ -779,7 +817,7 @@ function planHTML(){
     const pos=(k+.5)/n*plan.n,ix=items.findIndex(o=>pos>=o.r[0]&&pos<o.r[1]);
     return`<s data-i="${ix}" style="height:${Math.max(8,Math.round(v*100))}%;${ix<0?'':'background:'+col(ix)}"></s>`;
   }).join('');
-  const labs=items.map((o,i)=>`<span style="left:${(o.r[0]+o.r[1])/2/plan.n*100}%;color:${col(i)}">${i+1}</span>`).join('');
+  const labs=items.map((o,i)=>`<span style="left:${(o.r[0]+o.r[1])/2/plan.n*100}%;color:${col(i)}">${getStartNum()+i}</span>`).join('');
   return`<div class="plan"><div class="ph"><b>План разрезки</b><span>${items.length} ${items.length<5?'части':'частей'} · ${fmt(plan.total)}</span></div><div class="pw" id="pw">${bars}</div><div class="pn">${labs}</div></div>`;
 }
 function render(){
@@ -788,7 +826,7 @@ function render(){
   items.forEach((it,i)=>{
     const au=it.au=new Audio(it.url),d=document.createElement('div'),many=items.length>1;
     d.className='msg';d.style.setProperty('--c',COLORS[i%COLORS.length]);
-    const fname=fileName(it.text,many?String(i+1).padStart(2,'0')+'_':'');
+    const fname=fileName(it.text,many?String(getStartNum()+i).padStart(2,'0')+'_':'');
     d.innerHTML=`<button class="pl" title="Играть"><svg viewBox="0 0 24 24"><path d="${PLAY}"/></svg></button><div class="mid"><div class="wf">${it.pk.map(v=>`<s style="height:${Math.max(14,Math.round(v*100))}%"></s>`).join('')}</div><div class="meta"><span class="t">${fmt(it.dur)}</span><span class="nm"></span></div><div class="tx"></div></div><button class="sv" title="Скачать"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg></button>`;
     d.querySelector('.nm').textContent=fname;d.querySelector('.tx').textContent=it.text;
     const ic=d.querySelector('.pl path'),bars=[...d.querySelectorAll('.wf s')],tm=d.querySelector('.t');
@@ -828,7 +866,7 @@ function encMp3(pcm,rate){
 // i = номер части, -1 = весь файл целиком
 function saveFile(i){
   const it=i<0?null:items[i],many=items.length>1;
-  const name=i<0?fileName(lastText,''):fileName(it.text,many?String(i+1).padStart(2,'0')+'_':'');
+  const name=i<0?fileName(lastText,''):fileName(it.text,many?String(getStartNum()+i).padStart(2,'0')+'_':'');
   let blob;
   if(ext()==='wav')blob=i<0?lastBlob:it.blob;
   else{
@@ -843,7 +881,7 @@ function onFmt(){
   save2('gtts_fmt',el.fmt.value);
   el.dl.textContent='Скачать '+ext().toUpperCase();
   refresh();
-  document.querySelectorAll('.msg').forEach((m,i)=>{if(items[i])m.querySelector('.nm').textContent=fileName(items[i].text,items.length>1?String(i+1).padStart(2,'0')+'_':'')});
+  document.querySelectorAll('.msg').forEach((m,i)=>{if(items[i])m.querySelector('.nm').textContent=fileName(items[i].text,items.length>1?String(getStartNum()+i).padStart(2,'0')+'_':'')});
 }
 const save2=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 el.fmt.addEventListener('change',onFmt);
@@ -851,8 +889,8 @@ try{const f=localStorage.getItem('gtts_fmt');if(f==='mp3'||f==='wav')el.fmt.valu
 onFmt();
 $('reset').onclick=()=>{
   if(!confirm('Удалить сохранённые ключ, голос, тариф и язык?'))return;
-  ['gtts_key','gtts_voice','gtts_tier','gtts_lang','gtts_mode','gtts_fmt','gtts_kbps'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
-  el.key.value='';el.voice.selectedIndex=0;el.tier.value='15';maxRPM=15;
+  ['gtts_key','gtts_voice','gtts_tier','gtts_lang','gtts_mode','gtts_fmt','gtts_kbps','gtts_startnum'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
+  el.key.value='';el.voice.selectedIndex=0;el.tier.value='15';maxRPM=15;el.startNum.value='1';
   setChip('');save('gtts_lang','');
   try{localStorage.removeItem('gtts_lang')}catch(e){}
   setCells(['']);el.fmt.value='wav';onFmt();try{localStorage.removeItem('gtts_mode');localStorage.removeItem('gtts_fmt')}catch(e){}
