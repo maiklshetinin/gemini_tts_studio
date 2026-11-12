@@ -38,14 +38,39 @@ select.mini{width:auto;padding:6px 10px;font-size:13px;background:var(--soft);bo
 .keyadd{display:flex;gap:8px}
 .keyadd input{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 .keyadd .btn{height:42px;padding:0 16px}
-.keylist{display:flex;flex-direction:column;gap:6px}
+.keylist{display:flex;flex-direction:column;gap:4px}
 .keylist:empty{display:none}
-.keyrow{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--soft)}
-.keyrow .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
-.keyrow.bad .dot{background:var(--err)}
-.keyrow .kv{flex:1;min-width:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.keyrow .ks{font-size:12px;color:var(--muted);flex:none}
-.keyrow .x{flex:none}
+.keyhead,.keyrow{display:grid;grid-template-columns:minmax(110px,1.1fr) 112px 56px minmax(120px,1.5fr) 26px;gap:10px;align-items:center}
+.keyhead{padding:0 10px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.keyhead .c{text-align:center}
+.keyrow{padding:8px 10px;border-radius:10px;background:var(--soft);transition:background .15s,box-shadow .15s}
+.keyrow.busy{background:color-mix(in srgb,var(--focus) 12%,transparent);box-shadow:inset 3px 0 0 var(--focus)}
+.keyrow.bad{background:color-mix(in srgb,var(--err) 9%,transparent)}
+.keyrow .kv{min-width:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.keyrow .st{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap}
+.ico{width:18px;height:18px;border-radius:50%;flex:none;display:grid;place-items:center;border:2px solid var(--muted);color:#fff;opacity:.9}
+.ico svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;display:none}
+.ico.idle{border-style:dashed}
+.ico.busy{border-color:var(--focus);border-right-color:transparent;animation:s .7s linear infinite;opacity:1}
+.ico.ok{background:var(--ok);border-color:var(--ok);opacity:1}
+.ico.err{background:var(--err);border-color:var(--err);opacity:1}
+.ico.ok .i-ok,.ico.err .i-err{display:block}
+.st.ok{color:var(--ok)}.st.err{color:var(--err)}.st.busy{color:var(--focus)}
+.keyrow .kn{text-align:center;font-size:13px;font-variant-numeric:tabular-nums}
+.keyrow .ke{font-size:12px;line-height:1.35;color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.keyrow .ke b{display:block;font-weight:600;color:var(--err)}
+.keyrow .x{justify-self:end}
+@media (max-width:560px){
+  .keyhead{display:none}
+  .keyrow{grid-template-columns:1fr auto 26px;row-gap:4px}
+  .keyrow .kn{text-align:right}
+  .keyrow .kn::before{content:'запросов: ';color:var(--muted)}
+  .keyrow .ke{grid-column:1/-1}
+  .keyrow .st{grid-column:1}
+  .keyrow .kv{grid-column:1/-1}
+  .keyrow .x{grid-row:2;grid-column:3}
+  .keyrow .ke:empty{display:none}
+}
 .head{display:flex;justify-content:space-between;align-items:baseline}
 a{color:var(--link);text-decoration:none;font-size:13px}a:hover{text-decoration:underline}
 .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -122,10 +147,6 @@ audio.on{display:block}
 </head>
 <body>
 <div class="app">
-
-  <header>
-    <h1>Gemini TTS Studio</h1>
-  </header>
 
   <section class="stack">
     <div class="field">
@@ -516,9 +537,12 @@ const getStartNum=()=>{const n=parseInt(el.startNum.value,10);return(Number.isFi
 let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='',items=[],plan=null,fullPcm=null,fullRate=24000;
 
 // ---------- список API-ключей: если на одном кончилась квота, пробуем следующий ----------
-// keys: [{v:'AIzaSy...', x: мс-метка когда истекает блокировка по квоте (0 = не заблокирован)}]
+// keys: [{v:'AIzaSy...', x: мс-метка когда истекает блокировка (0 = не заблокирован),
+//         n: сколько запросов отправлено с этим ключом, st: 'idle'|'busy'|'ok'|'err', err: текст последней ошибки}]
 let keys=[];
 try{keys=JSON.parse(localStorage.getItem('gtts_keys')||'[]')||[]}catch(e){keys=[]}
+keys=keys.map(k=>({v:k.v,x:+k.x||0,n:+k.n||0,st:(k.st==='ok'||k.st==='err')?k.st:'idle',err:k.err||''}));
+const newKey=v=>({v,x:0,n:0,st:'idle',err:''});
 let keyPtr=0;
 function saveKeys(){try{localStorage.setItem('gtts_keys',JSON.stringify(keys))}catch(e){}}
 // Вытаскивает из текста ошибки Gemini время, через которое можно повторить попытку —
@@ -530,24 +554,52 @@ function parseRetryMs(msg){
   return ms>0?ms:null;
 }
 function fmtLeft(ms){const hh=Math.floor(ms/3600000),mm=Math.floor((ms%3600000)/60000);return hh>0?`${hh}ч ${mm}м`:`${Math.max(1,mm)}м`}
+function fmtUntil(ts){
+  const d=new Date(ts),p=n=>String(n).padStart(2,'0'),t=`${p(d.getHours())}:${p(d.getMinutes())}`;
+  return d.toDateString()===new Date().toDateString()?`сегодня в ${t}`:`${p(d.getDate())}.${p(d.getMonth()+1)} в ${t}`;
+}
+const ICO='<span class="ico"><svg class="i-ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><svg class="i-err" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></span>';
+const maskKey=v=>v.length>14?v.slice(0,8)+'…'+v.slice(-4):v;
+// Таблица: ключ | статус | запросов | ошибка / ограничение до. Строки обновляются на месте,
+// чтобы живой обратный отсчёт не ломал клики по крестику.
 function renderKeys(){
-  const box=$('keylist');box.innerHTML='';
+  const box=$('keylist');
   $('keyHint').hidden=keys.length<2;
   const now=Date.now();
+  if(!keys.length){box.innerHTML='';return}
+  if(box.children.length!==keys.length+1){
+    box.innerHTML='<div class="keyhead"><span>Ключ</span><span>Статус</span><span class="c">Запр.</span><span>Ограничение / ошибка</span><span></span></div>';
+    keys.forEach(k=>{
+      const row=document.createElement('div');row.className='keyrow';row.dataset.k=k.v;
+      row.innerHTML=`<span class="kv"></span><span class="st">${ICO}<span class="sl"></span></span><span class="kn"></span><span class="ke"></span><button class="x" type="button" title="Удалить">×</button>`;
+      row.querySelector('.kv').textContent=maskKey(k.v);row.querySelector('.kv').title=k.v;
+      row.querySelector('.x').onclick=()=>{const i=keys.findIndex(z=>z.v===k.v);if(i>=0)keys.splice(i,1);saveKeys();renderKeys()};
+      box.appendChild(row);
+    });
+  }
   keys.forEach((k,i)=>{
-    const bad=k.x>now;
-    const row=document.createElement('div');row.className='keyrow'+(bad?' bad':'');
-    row.innerHTML=`<span class="kv"></span><span class="ks"></span><button class="x" type="button" title="Удалить">×</button>`;
-    row.querySelector('.kv').textContent=k.v;
-    row.querySelector('.ks').textContent=bad?`квота до сброса ~${fmtLeft(k.x-now)}`:'активен';
-    row.querySelector('.x').onclick=()=>{keys.splice(i,1);saveKeys();renderKeys()};
-    box.appendChild(row);
+    const row=box.children[i+1];if(!row)return;
+    const blocked=k.x>now;
+    const s=k.st==='busy'?'busy':blocked?'err':(k.st==='ok'||k.st==='err')?k.st:'idle';
+    const label={idle:'ожидает',busy:'запрос…',ok:'работает',err:blocked?'лимит':'ошибка'}[s];
+    row.className='keyrow'+(s==='busy'?' busy':'')+(s==='err'?' bad':'');
+    row.querySelector('.ico').className='ico '+s;
+    const st=row.querySelector('.st');st.className='st '+(s==='idle'?'':s);
+    row.querySelector('.sl').textContent=label;
+    row.querySelector('.kn').textContent=k.n;
+    const ke=row.querySelector('.ke');
+    let h='';
+    if(blocked)h=`<b>Квота исчерпана</b>до ${fmtUntil(k.x)} · ещё ${fmtLeft(k.x-now)}`;
+    else if(s==='err')h=`<b>Ошибка</b>${esc(k.err||'Не удалось выполнить запрос')}`;
+    if(ke.dataset.h!==h){ke.dataset.h=h;ke.innerHTML=h;if(k.err)ke.title=k.err;else ke.removeAttribute('title')}
   });
 }
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+setInterval(()=>{if(keys.length)renderKeys()},1000);
 $('addKey').onclick=()=>{
   const v=el.key.value.trim();
   if(!v)return;
-  if(!keys.some(k=>k.v===v)){keys.push({v,x:0});saveKeys();renderKeys()}
+  if(!keys.some(k=>k.v===v)){keys.push(newKey(v));saveKeys();renderKeys()}
   el.key.value='';
 };
 el.key.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('addKey').click()}});
@@ -716,24 +768,35 @@ async function callGemini(sendText,voice){
     const k=keys[idx];
     if(k.x>now)continue;
     triedAny=true;
-    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-goog-api-key':k.v},
-      body:JSON.stringify({
-        contents:[{parts:[{text:sendText}]}],
-        generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
-      })
-    });
+    k.st='busy';k.err='';k.n++;saveKeys();renderKeys();
+    let res;
+    try{
+      res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-goog-api-key':k.v},
+        body:JSON.stringify({
+          contents:[{parts:[{text:sendText}]}],
+          generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
+        })
+      });
+    }catch(e){
+      k.st='err';k.err='Нет соединения с сервером: '+e.message;saveKeys();renderKeys();
+      throw new Error(k.err);
+    }
     if(!res.ok){
       let m='Ошибка сервера ('+res.status+')';
       try{m=(await res.json()).error.message||m}catch(e){}
+      k.st='err';k.err=m;
       if(res.status===429){
-        keys[idx].x=Date.now()+(parseRetryMs(m)||10*60000);saveKeys();renderKeys();
+        k.x=Date.now()+(parseRetryMs(m)||10*60000);saveKeys();renderKeys();
         lastErr=new Error(m);
         continue;
       }
+      if(res.status===400&&/api key/i.test(m))k.err='Неверный API-ключ. '+m;
+      saveKeys();renderKeys();
       throw new Error(m);
     }
+    k.st='ok';k.err='';k.x=0;saveKeys();renderKeys();
     keyPtr=(idx+1)%keys.length;
     return res.json();
   }
@@ -747,7 +810,7 @@ async function callGemini(sendText,voice){
 async function generate(){
   if(el.gen.disabled)return;
   const typed=el.key.value.trim();
-  if(typed&&!keys.some(k=>k.v===typed)){keys.push({v:typed,x:0});saveKeys();renderKeys();el.key.value=''}
+  if(typed&&!keys.some(k=>k.v===typed)){keys.push(newKey(typed));saveKeys();renderKeys();el.key.value=''}
   const lines=parseParts(),text=lines.join(' '),voice=el.voice.value,now=Date.now();
   if(!keys.length){toast('Введите API-ключ Gemini.','error');el.key.focus();return}
   if(!text){toast('Введите текст для озвучки.','error');taOf(cellList()[0]).focus();return}
