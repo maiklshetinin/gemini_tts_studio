@@ -139,7 +139,7 @@ audio.on{display:block}
       </div>
       <div class="cells" id="cells"></div>
       <button class="add" id="add" type="button">+ Добавить часть</button>
-      <div class="hint">Enter — новая часть, Shift+Enter — перенос строки внутри части. Каждая часть станет отдельным файлом.</div>
+      <div class="hint">Enter — перенос строки внутри части. Shift+Enter — разрезать часть в месте курсора, «+ Добавить часть» — новая пустая. Каждая часть станет отдельным файлом.</div>
     </div>
 
     <div class="actions">
@@ -249,7 +249,7 @@ function mkCell(text){
   ta.addEventListener('input',()=>{delete c.dataset.sp;refresh()});
   ta.addEventListener('keydown',e=>{
     const plain=!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!e.altKey;
-    if(e.key==='Enter'&&plain){            // новая часть: текст после курсора переезжает в неё
+    if(e.key==='Enter'&&e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!e.altKey){   // Shift+Enter: разрезать ячейку в месте курсора
       e.preventDefault();
       const b4=ta.value.slice(0,ta.selectionStart),af=ta.value.slice(ta.selectionEnd);
       const gap=/\s$/.test(b4)||/^\s/.test(af)||ta.selectionStart!==ta.selectionEnd;
