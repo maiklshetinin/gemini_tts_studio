@@ -168,12 +168,16 @@ audio.on{display:block}
       <div><div class="name">Пауза</div><div class="sub">Между запросами 4 сек</div></div>
       <div class="bar"><i id="cdBar"></i></div>
       <div class="pct" id="cdPct">готов</div>
+
+      <div><div class="name">В день</div><div class="sub" id="daySub">Оценка по вашим запросам</div></div>
+      <div class="bar"><i id="dayBar"></i></div>
+      <div class="pct" id="dayPct">—</div>
     </div>
   </section>
 
   <section style="padding-bottom:0">
     <div class="head" style="align-items:center">
-      <div><div class="name" style="font-size:14px">Сохранённые данные</div><div class="sub" style="font-size:12px;color:var(--muted);margin-top:2px">Ключ, голос, тариф и язык хранятся в браузере</div></div>
+      <div><div class="name" style="font-size:14px">Сохранённые данные</div><div class="sub" style="font-size:12px;color:var(--muted);margin-top:2px">Ключ, голос, тариф, номер части и язык хранятся в браузере (счётчик дневной квоты не сбрасывается — он отслеживает реальное состояние на стороне Google)</div></div>
       <button class="btn" id="reset" style="height:36px;padding:0 14px;font-size:14px">Очистить</button>
     </div>
   </section>
@@ -504,6 +508,43 @@ const el={key:$('key'),voice:$('voice'),gen:$('gen'),dl:$('dl'),toast:$('toast')
 const getStartNum=()=>{const n=parseInt(el.startNum.value,10);return(Number.isFinite(n)&&n>0)?n:1};
 let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='',items=[],plan=null,fullPcm=null,fullRate=24000;
 
+// ---------- дневная квота (Gemini сам не сообщает остаток — узнаём только по ответу 429,
+// поэтому ведём свою оценку по успешным запросам и уточняем её точным лимитом/таймером
+// сброса, как только API их однажды покажет в тексте ошибки) ----------
+let dayCount=0,dayLimit=null,dayResetAt=0;
+try{
+  dayCount=+(localStorage.getItem('gtts_daycount')||0)||0;
+  const dl=localStorage.getItem('gtts_daylimit');dayLimit=dl?+dl:null;
+  dayResetAt=+(localStorage.getItem('gtts_dayreset')||0)||0;
+}catch(e){}
+function saveDay(){
+  try{
+    localStorage.setItem('gtts_daycount',dayCount);
+    if(dayLimit)localStorage.setItem('gtts_daylimit',dayLimit);
+    localStorage.setItem('gtts_dayreset',dayResetAt);
+  }catch(e){}
+}
+function checkDayReset(){
+  if(dayResetAt&&Date.now()>=dayResetAt){dayCount=0;dayResetAt=0;saveDay()}
+}
+// Разбирает текст ошибки Gemini вида:
+// "Quota exceeded for metric: ...generate_content_free_tier_requests, limit: 10, ...
+//  Generate content requests per day limit exceeded on Free Tier. ... Please retry in 11h35m33s."
+function parseQuotaError(msg){
+  if(!msg)return;
+  const limM=/limit:\s*(\d+)/i.exec(msg);
+  const dailyM=/per day/i.exec(msg);
+  const retryM=/retry in\s*(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:([\d.]+)s)?/i.exec(msg);
+  if(limM)dayLimit=+limM[1];
+  if(retryM){
+    const h=+(retryM[1]||0),mi=+(retryM[2]||0),s=+(retryM[3]||0);
+    const ms=(h*3600+mi*60+s)*1000;
+    if(ms>0)dayResetAt=Date.now()+ms;
+  }
+  if(dailyM&&dayLimit)dayCount=dayLimit;
+  saveDay();
+}
+
 el.voice.innerHTML=VOICES.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}, ${v[2]}</option>`).join('');
 
 const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
@@ -634,14 +675,33 @@ function tick(){
   $('rpmSub').textContent=reset?`Сброс через ${reset} сек`:'Окно 60 сек';
   $('rpmBar').style.width=p+'%';
   $('rpmBar').classList.toggle('hi',p>=85);
-  const h=$('heads');
-  if(p>=85){
-    h.textContent=`Внимание. Лимит запросов почти исчерпан, следующий слот освободится через ${reset} сек.`;
-    h.classList.add('show');
-  }else h.classList.remove('show');
   const cd=Math.max(0,cdEnd-now);
   $('cdBar').style.width=(cd/COOLDOWN*100)+'%';
   $('cdPct').textContent=cd>0?(cd/1000).toFixed(1)+' сек':'готов';
+
+  checkDayReset();
+  const dayLeft=dayResetAt>now?dayResetAt-now:0;
+  const fmtLeft=ms=>{const hh=Math.floor(ms/3600000),mm=Math.floor((ms%3600000)/60000);return hh>0?`${hh}ч ${mm}м`:`${mm}м`};
+  if(dayLimit){
+    const dp=Math.min(100,Math.round(dayCount/dayLimit*100));
+    $('dayBar').style.width=dp+'%';
+    $('dayBar').classList.toggle('hi',dp>=85);
+    $('dayPct').textContent=`${dayCount} из ${dayLimit} · ${dp}%`;
+    $('daySub').textContent=dayLeft?`Сброс через ${fmtLeft(dayLeft)}`:'Оценка по вашим запросам';
+  }else{
+    $('dayBar').style.width=Math.min(100,dayCount*8)+'%';
+    $('dayPct').textContent=`${dayCount} запрос(ов) сегодня`;
+    $('daySub').textContent='Лимит неизвестен — узнаём его из первой ошибки квоты';
+  }
+
+  const h=$('heads');
+  if(dayLimit&&dayCount>=dayLimit&&dayLeft){
+    h.textContent=`Дневная квота Gemini исчерпана. Сброс через ${fmtLeft(dayLeft)}.`;
+    h.classList.add('show');
+  }else if(p>=85){
+    h.textContent=`Внимание. Лимит запросов почти исчерпан, следующий слот освободится через ${reset} сек.`;
+    h.classList.add('show');
+  }else h.classList.remove('show');
 }
 setInterval(tick,200);tick();
 
@@ -680,6 +740,12 @@ async function generate(){
   const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join(PART_GAP):text;
   if(stamps.length>=maxRPM){toast('Лимит запросов в минуту исчерпан. Подождите.','error');return}
   if(now<cdEnd){toast('Подождите '+((cdEnd-now)/1000).toFixed(1)+' сек.','warning');return}
+  checkDayReset();
+  if(dayLimit&&dayCount>=dayLimit&&dayResetAt>now){
+    const left=dayResetAt-now,hh=Math.floor(left/3600000),mm=Math.floor((left%3600000)/60000);
+    toast(`Дневная квота Gemini исчерпана (${dayCount} из ${dayLimit}). Сброс через ${hh}ч ${mm}м.`,'error');
+    return;
+  }
 
   stamps.push(now);cdEnd=now+COOLDOWN;tick();
   setBusy(true);toast('Отправка запроса…');
@@ -692,9 +758,14 @@ async function generate(){
         generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
       })
     });
+    // Каждый дошедший до API запрос расходует дневную квоту — считаем его, даже если
+    // дальше окажется ошибкой (сама оценка грубая, точные limit/сброс подтянутся
+    // из текста ошибки 429, если и когда она случится).
+    dayCount++;saveDay();
     if(!res.ok){
       let m='Ошибка сервера ('+res.status+')';
       try{m=(await res.json()).error.message||m}catch(e){}
+      if(res.status===429)parseQuotaError(m);
       throw new Error(m);
     }
     const data=await res.json();
