@@ -641,7 +641,14 @@ const parseParts=()=>cellList().map(c=>joinLines(taOf(c).value)).filter(Boolean)
 const grow=ta=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px'};
 function focusCell(c,pos){const t=taOf(c);t.focus();const p=pos==='end'?t.value.length:(pos||0);t.setSelectionRange(p,p)}
 
-function refresh(){
+// Перерисовка блоков на миг делает страницу короче, и браузер сдвигает прокрутку —
+// запоминаем позицию и возвращаем её после.
+function keepScroll(fn){
+  const x=window.scrollX,y=window.scrollY;
+  try{fn()}finally{if(Math.abs(window.scrollY-y)>1||Math.abs(window.scrollX-x)>1)window.scrollTo(x,y)}
+}
+function refresh(){keepScroll(refreshInner)}
+function refreshInner(){
   let k=0;
   cellList().forEach(c=>{
     const ta=taOf(c),t=joinLines(ta.value),num=c.querySelector('.num'),fn=c.querySelector('.fnm');
@@ -1033,7 +1040,8 @@ function initCuts(pw){
     });
   });
 }
-function render(){
+function render(){keepScroll(renderInner)}
+function renderInner(){
   const res=$('res');res.innerHTML='';
   if(items.length>1&&plan)res.insertAdjacentHTML('beforeend',planHTML());
   items.forEach((it,i)=>{
@@ -1144,6 +1152,17 @@ $('reset').onclick=()=>{
 };
 el.gen.onclick=generate;
 el.dl.onclick=download;
+// Запоминаем прокрутку и после обновления страницы возвращаем на то же место.
+try{history.scrollRestoration='manual'}catch(e){}
+let scrollT=null;
+window.addEventListener('scroll',()=>{
+  clearTimeout(scrollT);
+  scrollT=setTimeout(()=>{try{sessionStorage.setItem('gtts_scroll',String(Math.round(window.scrollY)))}catch(e){}},120);
+},{passive:true});
+try{
+  const sy=+sessionStorage.getItem('gtts_scroll');
+  if(sy>0)requestAnimationFrame(()=>window.scrollTo(0,sy));
+}catch(e){}
 </script>
 </body>
 </html>
