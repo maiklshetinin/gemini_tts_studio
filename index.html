@@ -24,7 +24,6 @@ h2{font-size:15px;font-weight:600}
 section{padding:20px 0;border-top:1px solid var(--line)}
 section:first-of-type{border-top:0;padding-top:0}
 .stack{display:flex;flex-direction:column;gap:16px}
-.field{display:flex;flex-direction:column;gap:6px}
 label,.lbl{font-size:13px;color:var(--muted)}
 input,select,textarea,button{font:inherit;color:inherit}
 input[type=password],input[type=text],select,textarea{width:100%;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s}
@@ -68,9 +67,6 @@ audio.on{display:block}
 .pct{text-align:right;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 @media (max-width:520px){.usage{grid-template-columns:1fr auto}.usage .bar{grid-column:1/-1;order:3;margin-top:-8px}}
 [hidden]{display:none!important}
-.seg{display:inline-flex;background:var(--soft);border-radius:9px;padding:3px;align-self:flex-start}
-.seg button{border:0;background:none;padding:5px 12px;border-radius:7px;font-size:13px;cursor:pointer;color:var(--muted)}
-.seg button.on{background:var(--bg);color:var(--text);font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.15)}
 .res{display:flex;flex-direction:column;gap:6px}.res:empty{display:none}
 .msg{--c:var(--focus);display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--c) 12%,transparent);border-radius:16px 16px 16px 4px;padding:8px 8px 8px 8px}
 .pl{width:38px;height:38px;border-radius:50%;border:0;background:var(--c);cursor:pointer;flex:none;display:grid;place-items:center}
@@ -86,27 +82,25 @@ audio.on{display:block}
 .sv{border:0;background:none;color:var(--muted);cursor:pointer;padding:7px;border-radius:8px;flex:none}
 .sv:hover{background:var(--soft-h);color:var(--text)}
 .sv svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block}
-.ed{position:relative;--gut:0px}
-.ed.multi{--gut:40px}
-.mir,.ed textarea{font:inherit;line-height:1.55;padding:9px 12px 9px calc(12px + var(--gut));border:1px solid transparent;border-radius:10px;white-space:pre-wrap;overflow-wrap:break-word;tab-size:4}
-.mir{position:absolute;inset:0;overflow:hidden;color:transparent;background:var(--field);pointer-events:none;user-select:none}
-.ed textarea{position:relative;display:block;background:transparent;border-color:var(--line);resize:none;min-height:140px;max-height:320px;scrollbar-width:none}
-.ed textarea::-webkit-scrollbar{display:none}
-.ln{position:relative;min-height:1.55em;margin:0 -12px 0 calc(-12px - var(--gut));padding:0 12px 0 calc(12px + var(--gut))}
-.ed.multi .ln.p{background:color-mix(in srgb,var(--c) 15%,transparent);box-shadow:inset 3px 0 0 var(--c)}
-.ln.sep{display:flex;align-items:center;gap:8px;height:23.25px;min-height:0;color:var(--c);font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden}
-.ln.sep::before,.ln.sep::after{content:'';flex:1;border-top:1.5px dashed color-mix(in srgb,var(--c) 55%,transparent)}
-.ln.sep span{max-width:75%;overflow:hidden;text-overflow:ellipsis}
-.ed.multi .ln[data-n]::before{content:attr(data-n);position:absolute;left:10px;top:0;font-size:12px;line-height:23.25px;font-weight:600;color:var(--c)}
-.fn{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.fn:empty{display:none}
-.fi{--c:var(--focus);background:color-mix(in srgb,var(--c) 14%,transparent);border-left:3px solid var(--c);border-radius:6px;padding:3px 9px;font-size:12px;color:var(--text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fi b{color:var(--c);font-weight:600;margin-right:6px}
 .plan{padding:2px 0 8px}
 .ph{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.ph span{color:var(--muted)}
 .pw{display:flex;align-items:center;gap:1px;height:48px;cursor:pointer}
 .pw s{flex:1;min-width:1px;border-radius:2px;background:var(--wf);display:block;text-decoration:none}
 .pn{position:relative;height:16px;margin-top:3px;font-size:11px;font-weight:600}
 .pn span{position:absolute;transform:translateX(-50%)}
+
+.cells{display:flex;flex-direction:column;gap:8px}
+.cell{--c:var(--wf);display:flex;gap:10px;align-items:flex-start;padding:10px 8px 10px 12px;border-radius:12px;background:color-mix(in srgb,var(--c) 11%,transparent);box-shadow:inset 4px 0 0 var(--c);transition:background .15s}
+.cell:focus-within{background:color-mix(in srgb,var(--c) 19%,transparent)}
+.num{flex:none;width:22px;height:22px;border-radius:50%;background:var(--c);color:#fff;font-size:12px;font-weight:600;display:grid;place-items:center;margin-top:1px}
+.cb{flex:1;min-width:0}
+.cell textarea{display:block;width:100%;border:0;background:transparent;padding:0;min-height:24px;resize:none;overflow:hidden;line-height:1.55;border-radius:0}
+.cell textarea:focus{box-shadow:none;border:0}
+.fnm{display:block;margin-top:4px;font-size:12px;font-weight:600;color:var(--c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:2px 7px;border-radius:6px;cursor:pointer;opacity:.5}
+.x:hover{opacity:1;background:var(--soft-h)}
+.add{align-self:flex-start;border:1px dashed var(--line);background:none;border-radius:10px;padding:6px 12px;font-size:13px;color:var(--muted);cursor:pointer}
+.add:hover{color:var(--text);border-color:var(--muted)}
 </style>
 </head>
 <body>
@@ -135,7 +129,6 @@ audio.on{display:block}
     </div>
 
     <div class="field">
-      <div class="chips"><div class="seg" id="seg"><button data-m="one">Одним файлом</button><button data-m="multi">Резать на части</button></div><span class="lbl" id="segHint" hidden>Пустая строка = разрез на новый файл</span></div>
       <div class="chips">
         <span class="lbl">Пример</span>
         <button class="chip" data-l="ru" data-t="Привет! Кажется, нейросети научились говорить интонационно красиво.">Русский</button>
@@ -144,8 +137,9 @@ audio.on{display:block}
         <span class="sp"></span>
         <span class="count" id="count">0 симв.</span>
       </div>
-      <div class="ed" id="ed"><div class="mir" id="mir" aria-hidden="true"></div><textarea id="text" spellcheck="false" placeholder="Введите текст для озвучки…"></textarea></div>
-      <div class="fn" id="fn"></div>
+      <div class="cells" id="cells"></div>
+      <button class="add" id="add" type="button">+ Добавить часть</button>
+      <div class="hint">Enter — новая часть, Shift+Enter — перенос строки внутри части. Каждая часть станет отдельным файлом.</div>
     </div>
 
     <div class="actions">
@@ -190,13 +184,12 @@ const VOICES=[
 const COOLDOWN=4000;
 const COLORS=['#2b7de0','#e0603a','#2fa36b','#a855d6','#d99a1e','#d6457f','#1fa3b8','#7d8f1f'];
 const $=id=>document.getElementById(id);
-const el={key:$('key'),voice:$('voice'),text:$('text'),gen:$('gen'),dl:$('dl'),toast:$('toast'),tier:$('tier')};
-let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='',items=[],plan=null,mode='multi';
+const el={key:$('key'),voice:$('voice'),gen:$('gen'),dl:$('dl'),toast:$('toast'),tier:$('tier')};
+let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='',items=[],plan=null;
 
 el.voice.innerHTML=VOICES.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}, ${v[2]}</option>`).join('');
 
 const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
-try{mode=localStorage.getItem('gtts_mode')||'multi'}catch(e){}
 try{
   el.key.value=localStorage.getItem('gtts_key')||'';
   const v=localStorage.getItem('gtts_voice');if(v)el.voice.value=v;
@@ -221,69 +214,91 @@ function setChip(lang){
 chips.forEach(c=>c.onclick=()=>{
   if(c.classList.contains('on')){setChip('');return}
   setChip(c.dataset.l);
-  el.text.value=c.dataset.t;count();
+  addText(c.dataset.t);
 });
-try{
-  const l=localStorage.getItem('gtts_lang');
-  const c=chips.find(x=>x.dataset.l===l);
-  if(c){setChip(l);if(!el.text.value){el.text.value=c.dataset.t;count()}}
-}catch(e){}
 
-el.text.addEventListener('input',count);
-function count(){
-  const t=el.text.value,n=parseParts(t).length;
-  $('count').textContent=(mode==='multi'?n+' ч. · ':'')+t.length+' симв.';
-  syncEd();
-}
-const escH=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-// подсветка строк (слой под textarea) + превью имён файлов
-// часть = блок строк, отделённый от других пустой строкой
-function parseParts(t){
-  const out=[];let cur=[];
-  t.split('\n').forEach(l=>{if(l.trim())cur.push(l.trim());else if(cur.length){out.push(cur.join(' '));cur=[]}});
-  if(cur.length)out.push(cur.join(' '));
-  return out;
-}
-function syncEd(){
-  const ta=el.text,mir=$('mir'),multi=mode==='multi',raw=ta.value.split('\n');
-  $('ed').classList.toggle('multi',multi);
-  const parts=parseParts(ta.value),col=i=>COLORS[i%COLORS.length],pad=i=>String(i+1).padStart(2,'0');
-  const nm=i=>fileName(parts[i],pad(i)+'_');
-  let n=-1,prev=false,html='';
-  raw.forEach(l=>{
-    const body=escH(l)||'\u200b';
-    if(multi&&l.trim()){
-      if(!prev)n++;
-      html+=`<div class="ln p"${prev?'':` data-n="${n+1}"`} style="--c:${col(n)}">${body}</div>`;
-      prev=true;
+
+// ---------- редактор из ячеек: одна ячейка = один файл ----------
+const cellsEl=$('cells');
+const cellList=()=>[...cellsEl.children];
+const taOf=c=>c.querySelector('textarea');
+const joinLines=t=>t.split('\n').map(x=>x.trim()).filter(Boolean).join(' ');
+const parseParts=()=>cellList().map(c=>joinLines(taOf(c).value)).filter(Boolean);
+const grow=ta=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px'};
+function focusCell(c,pos){const t=taOf(c);t.focus();const p=pos==='end'?t.value.length:(pos||0);t.setSelectionRange(p,p)}
+
+function refresh(){
+  let k=0,chars=0;
+  cellList().forEach(c=>{
+    const ta=taOf(c),t=joinLines(ta.value),num=c.querySelector('.num'),fn=c.querySelector('.fnm');
+    grow(ta);
+    if(t){
+      const i=k++;chars+=t.length;
+      c.classList.remove('empty');c.style.setProperty('--c',COLORS[i%COLORS.length]);
+      num.textContent=i+1;fn.textContent=fileName(t,String(i+1).padStart(2,'0')+'_');
     }else{
-      if(multi&&prev&&n+1<parts.length)html+=`<div class="ln sep" style="--c:${col(n+1)}"><span>✂ ${pad(n+1)} · ${escH(nm(n+1))}</span></div>`;
-      else html+=`<div class="ln">${body}</div>`;
-      prev=false;
+      c.classList.add('empty');c.style.removeProperty('--c');num.textContent='·';fn.textContent='';
     }
   });
-  mir.innerHTML=html;
-  ta.style.height='auto';
-  ta.style.height=Math.min(ta.scrollHeight+2,320)+'px';
-  mir.scrollTop=ta.scrollTop;
-  const names=multi?parts.map((p,i)=>[pad(i),nm(i),col(i)]):(ta.value.trim()?[['',fileName(ta.value.trim(),'')]]:[]);
-  const MAX=24;
-  $('fn').innerHTML=names.slice(0,MAX).map(x=>`<span class="fi" style="--c:${x[2]||'var(--focus)'}" title="${escH(x[1])}">${x[0]?'<b>'+x[0]+'</b>':''}${escH(x[1])}</span>`).join('')
-    +(names.length>MAX?`<span class="count">и ещё ${names.length-MAX}</span>`:'');
+  $('count').textContent=(k>1?k+' ч. · ':'')+chars+' симв.';
 }
-el.text.addEventListener('scroll',()=>{$('mir').scrollTop=el.text.scrollTop});
-window.addEventListener('resize',syncEd);
-const segBtns=[...document.querySelectorAll('#seg button')];
-function setMode(m){
-  mode=m;save('gtts_mode',m);
-  segBtns.forEach(b=>b.classList.toggle('on',b.dataset.m===m));
-  $('segHint').hidden=m!=='multi';
-  el.text.placeholder=m==='multi'?'Части разделяются пустой строкой — каждая станет отдельным файлом. Готовую запись скрипт сам разрежет по паузам.':'Введите текст для озвучки…';
-  count();
+function mkCell(text){
+  const c=document.createElement('div');c.className='cell';
+  c.innerHTML='<div class="num"></div><div class="cb"><textarea rows="1" spellcheck="false" placeholder="Текст части…"></textarea><span class="fnm"></span></div><button class="x" type="button" title="Удалить часть" tabindex="-1">×</button>';
+  const ta=taOf(c);ta.value=text||'';
+  ta.addEventListener('input',()=>{delete c.dataset.sp;refresh()});
+  ta.addEventListener('keydown',e=>{
+    const plain=!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!e.altKey;
+    if(e.key==='Enter'&&plain){            // новая часть: текст после курсора переезжает в неё
+      e.preventDefault();
+      const b4=ta.value.slice(0,ta.selectionStart),af=ta.value.slice(ta.selectionEnd);
+      const gap=/\s$/.test(b4)||/^\s/.test(af)||ta.selectionStart!==ta.selectionEnd;
+      ta.value=b4.replace(/\s+$/,'');
+      const n=mkCell(af.replace(/^\s+/,''));n.dataset.sp=gap?'1':'0';c.after(n);refresh();focusCell(n,0);
+    }else if(e.key==='Backspace'&&ta.selectionStart===0&&ta.selectionEnd===0&&c.previousElementSibling){
+      e.preventDefault();                  // в начале части: склеиваем с предыдущей
+      const pv=c.previousElementSibling,pt=taOf(pv),pos=pt.value.length;
+      pt.value=pt.value+(pt.value&&ta.value&&c.dataset.sp!=='0'?' ':'')+ta.value;
+      c.remove();refresh();focusCell(pv,pos);
+    }else if(e.key==='ArrowUp'&&plain&&ta.selectionStart===0&&c.previousElementSibling){
+      e.preventDefault();focusCell(c.previousElementSibling,'end');
+    }else if(e.key==='ArrowDown'&&plain&&ta.selectionEnd===ta.value.length&&c.nextElementSibling){
+      e.preventDefault();focusCell(c.nextElementSibling,0);
+    }
+  });
+  ta.addEventListener('paste',e=>{         // вставка с пустыми строками сама делится на части
+    const txt=(e.clipboardData||window.clipboardData).getData('text');
+    if(!/\n\s*\n/.test(txt))return;
+    e.preventDefault();
+    const ps=txt.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
+    if(!ps.length)return;
+    const before=ta.value.slice(0,ta.selectionStart),after=ta.value.slice(ta.selectionEnd);
+    ta.value=before+ps[0];
+    let last=c;
+    ps.slice(1).forEach((t,i)=>{const n=mkCell(i===ps.length-2?t+after:t);last.after(n);last=n});
+    if(ps.length===1)ta.value+=after;
+    refresh();focusCell(last,'end');
+  });
+  c.querySelector('.x').onclick=()=>{
+    if(cellsEl.children.length>1)c.remove();else ta.value='';
+    refresh();
+  };
+  return c;
 }
-segBtns.forEach(b=>b.onclick=()=>setMode(b.dataset.m));
-setMode(mode);
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')generate()});
+function setCells(arr){cellsEl.innerHTML='';arr.forEach(t=>cellsEl.append(mkCell(t)));refresh()}
+function addText(t){
+  const cs=cellList();
+  if(cs.every(c=>!taOf(c).value.trim()))setCells([t]);
+  else{cellsEl.append(mkCell(t));refresh()}
+}
+$('add').onclick=()=>{const n=mkCell('');cellsEl.append(n);refresh();focusCell(n)};
+window.addEventListener('resize',refresh);
+setCells(['']);
+try{
+  const l=localStorage.getItem('gtts_lang'),c=chips.find(x=>x.dataset.l===l);
+  if(c){setChip(l);addText(c.dataset.t)}
+}catch(e){}
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();generate()}});
 
 function toast(msg,type){
   el.toast.className='toast show '+(type||'');
@@ -334,11 +349,11 @@ function setBusy(b){
 
 async function generate(){
   if(el.gen.disabled)return;
-  const key=el.key.value.trim(),text=el.text.value.trim(),voice=el.voice.value,now=Date.now();
+  const key=el.key.value.trim(),lines=parseParts(),text=lines.join(' '),voice=el.voice.value,now=Date.now();
   if(!key){toast('Введите API-ключ Gemini.','error');el.key.focus();return}
-  if(!text){toast('Введите текст для озвучки.','error');el.text.focus();return}
+  if(!text){toast('Введите текст для озвучки.','error');taOf(cellList()[0]).focus();return}
   stamps=stamps.filter(t=>now-t<60000);
-  const multi=mode==='multi',lines=parseParts(text);
+  const multi=lines.length>1;
   const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join('\n'):text;
   if(stamps.length>=maxRPM){toast('Лимит запросов в минуту исчерпан. Подождите.','error');return}
   if(now<cdEnd){toast('Подождите '+((cdEnd-now)/1000).toFixed(1)+' сек.','warning');return}
@@ -484,7 +499,7 @@ $('reset').onclick=()=>{
   el.key.value='';el.voice.selectedIndex=0;el.tier.value='15';maxRPM=15;
   setChip('');save('gtts_lang','');
   try{localStorage.removeItem('gtts_lang')}catch(e){}
-  setMode('multi');try{localStorage.removeItem('gtts_mode')}catch(e){}
+  setCells(['']);try{localStorage.removeItem('gtts_mode')}catch(e){}
   tick();toast('Сохранённые данные удалены.','success');
 };
 el.gen.onclick=generate;
