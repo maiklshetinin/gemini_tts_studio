@@ -109,8 +109,8 @@ audio.on{display:block}
 .pl{width:38px;height:38px;border-radius:50%;border:0;background:var(--c);cursor:pointer;flex:none;display:grid;place-items:center}
 .pl svg{width:20px;height:20px;fill:#fff}
 .mid{flex:1;min-width:0}
-.wf{display:flex;align-items:center;gap:2px;height:28px;cursor:pointer}
-.wf s{flex:1;min-width:2px;max-width:4px;border-radius:2px;background:var(--wf);display:block;text-decoration:none}
+.wf{display:flex;align-items:center;gap:2px;height:28px;cursor:pointer;touch-action:none;user-select:none}
+.wf s{flex:1;min-width:1px;border-radius:2px;background:var(--wf);display:block;text-decoration:none}
 .wf s.p{background:var(--c)}
 .meta{display:flex;gap:8px;font-size:12px;color:var(--muted);margin-top:2px;min-width:0}
 .meta .t{font-variant-numeric:tabular-nums;flex:none}
@@ -121,7 +121,8 @@ audio.on{display:block}
 .sv svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block}
 .plan{padding:2px 0 8px}
 .ph{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.ph span{color:var(--muted)}
-.pw{display:flex;align-items:center;gap:1px;height:48px;cursor:pointer}
+.pw{position:relative;display:flex;align-items:center;gap:1px;height:48px;cursor:pointer;touch-action:none;user-select:none}
+.pw .hd{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--text);border-radius:1px;display:none;pointer-events:none;left:0}
 .pw s{flex:1;min-width:1px;border-radius:2px;background:var(--wf);display:block;text-decoration:none}
 .pn{position:relative;height:16px;margin-top:3px;font-size:11px;font-weight:600}
 .pn span{position:absolute;transform:translateX(-50%)}
@@ -820,7 +821,10 @@ async function generate(){
   // дают паузу длиннее любой естественной паузы внутри текста, и split() потом находит
   // и вырезает именно её, а не случайную паузу внутри предложения.
   const PART_GAP='\n\n\n\n';
-  const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join(PART_GAP):text;
+  // Конец каждой части (кроме последней) заканчиваем многоточием — это самая длинная пауза у TTS,
+  // её проще всего отличить от обычных пауз между предложениями. Вопрос/восклицание сохраняем: «zna?...»
+  const endPart=l=>/[?!]$/.test(l)?l+'...':l.replace(/[.…]+$/,'')+'...';
+  const sendText=multi?lines.map((l,i)=>i<lines.length-1?endPart(l):(/[.!?…]$/.test(l)?l:l+'.')).join(PART_GAP):text;
   if(stamps.length>=maxRPM){toast('Лимит запросов в минуту исчерпан. Подождите.','error');return}
   if(now<cdEnd){toast('Подождите '+((cdEnd-now)/1000).toFixed(1)+' сек.','warning');return}
 
@@ -841,7 +845,7 @@ async function generate(){
     const ranges=multi?split(pcm,rate,lines):[[0,pcm.length]];
     items=ranges.map((r,i)=>{
       const sl=pcm.slice(r[0],r[1]),bl=pcmToWav(sl,rate);
-      return{r,blob:bl,text:multi?(lines[i]||''):text,url:URL.createObjectURL(bl),pk:peaks(sl,36),dur:sl.length/rate};
+      return{r,blob:bl,text:multi?(lines[i]||''):text,url:URL.createObjectURL(bl),pk:peaks(sl,80),dur:sl.length/rate};
     });
     plan={pk:peaks(pcm,110),n:pcm.length,total:pcm.length/rate};
     render();
@@ -859,22 +863,76 @@ async function generate(){
 const PLAY='M8 5v14l11-7z',PAUSE='M7 5h4v14H7zM13 5h4v14h-4z';
 const fmt=x=>Math.floor(Math.round(x)/60)+':'+String(Math.round(x)%60).padStart(2,'0');
 
-// Режем PCM на N частей. Между частями при отправке в TTS мы специально ставим
-// длинный разрыв-маркер (PART_GAP, см. generate()) — заведомо длиннее любой
-// естественной паузы внутри предложения. Поэтому границу ищем прежде всего
-// по ДЛИНЕ паузы (маркер почти всегда самая длинная пауза рядом с ожидаемым
-// местом разреза), а близость к ожидаемой позиции — лишь подсказка на случай
-// неоднозначности. Это и есть «вырезание символа-разделителя»: найденная
-// пауза-маркер целиком выбрасывается на этапе финальной обрезки ниже.
+// Режем PCM на части. Между частями при отправке в TTS стоит длинный разрыв (PART_GAP),
+// но одной «самой длинной паузы» мало: после короткого вопроса вроде «Jakie kolędy Pan(i) zna?»
+// модель тоже делает паузу, и граница уезжала на неё. Поэтому теперь мы сверяем ВСЮ цепочку:
+// в тексте знаем каждое предложение (значит, каждую ожидаемую паузу по порядку), в аудио находим
+// все паузы и выравниваем одно по другому (динамика, как при сравнении двух последовательностей).
+// Граница между частями — это та пауза, что попала на конец последнего предложения части.
+function sentencesOf(t){
+  const m=t.match(/[\s\S]+?[.!?…]+["»”')\]]*(?=\s|$)|[\s\S]+$/g)||[t];
+  return m.map(s=>s.trim()).filter(Boolean);
+}
+function alignCuts(cand,bnd,nf){
+  const M=bnd.length,K=cand.length;
+  if(!M)return null;
+  const unit=nf/(M+1);
+  const skipB=i=>bnd[i].part>=0?6:.9;
+  const skipP=j=>.15+.7*Math.min(cand[j].len,1.2);
+  const match=(i,j)=>{
+    const D=Math.abs(cand[j].pos-bnd[i].e)/unit,L=Math.min(cand[j].len,1.2);
+    return .7*Math.min(D,4)+.4*(1.2-L)-(bnd[i].part>=0?.25*Math.min(cand[j].len,2):0);
+  };
+  const W=K+1,dp=new Float64Array((M+1)*W),bk=new Int8Array((M+1)*W);   // 0 — совпало, 1 — пропуск границы, 2 — пропуск паузы
+  for(let j=1;j<=K;j++){dp[j]=dp[j-1]+skipP(j-1);bk[j]=2}
+  for(let i=1;i<=M;i++){
+    dp[i*W]=dp[(i-1)*W]+skipB(i-1);bk[i*W]=1;
+    for(let j=1;j<=K;j++){
+      let b=dp[(i-1)*W+j-1]+match(i-1,j-1),t=0;
+      const a=dp[(i-1)*W+j]+skipB(i-1),c=dp[i*W+j-1]+skipP(j-1);
+      if(a<b){b=a;t=1}
+      if(c<b){b=c;t=2}
+      dp[i*W+j]=b;bk[i*W+j]=t;
+    }
+  }
+  const asg=new Array(M).fill(-1);
+  let i=M,j=K;
+  while(i>0||j>0){
+    const t=bk[i*W+j];
+    if(i>0&&j>0&&t===0){asg[i-1]=j-1;i--;j--}
+    else if(i>0&&(t===1||j===0)){i--}
+    else j--;
+  }
+  const cuts=[];
+  for(let b=0;b<M;b++)if(bnd[b].part>=0){
+    if(asg[b]<0)return null;                 // для границы части пауза не нашлась — этот порог не годится
+    cuts[bnd[b].part]=cand[asg[b]].pos;
+  }
+  for(let k=1;k<cuts.length;k++)if(cuts[k]<=cuts[k-1])return null;
+  return{cuts,cost:dp[M*W+K]/(M+1)};
+}
 function split(pcm,rate,lines){
   const N=lines.length;if(N<2)return[[0,pcm.length]];
   const fr=Math.round(rate/100),nf=Math.floor(pcm.length/fr),e=new Float32Array(nf);
   for(let i=0;i<nf;i++){let q=0;for(let j=i*fr;j<(i+1)*fr;j++){q+=pcm[j]*pcm[j]}e[i]=Math.sqrt(q/fr)}
   const p90=[...e].sort((x,y)=>x-y)[Math.floor(nf*.9)]||1;
-  const tot=lines.reduce((x,l)=>x+l.length,0)||1;
-  let c=0;const exp=lines.slice(0,-1).map(l=>nf*(c+=l.length)/tot);   // ожидаемые места разрезов
-  const sc=nf/N;                                                      // средняя длина части в кадрах
-  let cuts=null;
+
+  // Границы предложений в тексте. Вес = символы + «пауза»; у границы между частями вес больше (разрыв).
+  const bnd=[];let cum=0,tw=0;
+  lines.forEach((l,k)=>{
+    const ss=sentencesOf(l);
+    ss.forEach((s,si)=>{
+      cum+=s.length+10;
+      const last=si===ss.length-1;
+      if(last&&k===N-1){tw=cum;return}                 // самый конец текста — не граница
+      if(last)cum+=20;                                 // разрыв между частями длиннее обычной паузы
+      bnd.push({w:cum,part:last?k:-1});
+    });
+  });
+  bnd.forEach(b=>b.e=nf*b.w/tw);
+  const exp=bnd.filter(b=>b.part>=0).map(b=>b.e);     // ожидаемые места разрезов (запасной вариант)
+
+  let best=null;
   for(const k of[.06,.1,.18,.3]){
     const thr=p90*k,cand=[];let st=-1;
     for(let i=0;i<=nf;i++){
@@ -882,48 +940,13 @@ function split(pcm,rate,lines){
       if(q&&st<0)st=i;
       if(!q&&st>=0){if(st>0&&i<nf&&i-st>=10)cand.push({pos:(st+i)>>1,len:Math.min((i-st)/100,6)});st=-1}
     }
-    const M=cand.length;
-    if(M<N-1)continue;
-
-    // Попытка №1: маркер-граница почти всегда самая длинная пауза в своём окне —
-    // для каждой ожидаемой границы берём жадно самую длинную паузу в окрестности
-    // и проверяем, что порядок не нарушился (разрезы идут по возрастанию).
-    const win=sc*.7;
-    const greedy=exp.map(x=>{
-      let best=-1,bestScore=-Infinity;
-      cand.forEach((cc,j)=>{
-        if(Math.abs(cc.pos-x)>win)return;
-        const s=cc.len*1E6-Math.abs(cc.pos-x);   // длина решает почти всё, позиция — тай-брейк
-        if(s>bestScore){bestScore=s;best=j}
-      });
-      return best;
-    });
-    if(greedy.every(j=>j>=0)&&greedy.every((j,i)=>i===0||cand[j].pos>cand[greedy[i-1]].pos)){
-      cuts=greedy.map(j=>cand[j].pos);
-      break;
-    }
-
-    // Попытка №2: динамика с приоритетом длины паузы (маркера) над позицией.
-    const sco=(j,k)=>cand[j].len*2.2-Math.abs(cand[j].pos-exp[k])/sc;
-    let dp=cand.map((_,j)=>sco(j,0)),back=[];
-    for(let k=1;k<N-1;k++){
-      const nd=new Array(M).fill(-Infinity),bk=new Array(M).fill(-1);
-      let best=-Infinity,bi=-1;
-      for(let j=0;j<M;j++){
-        if(j>0&&dp[j-1]>best){best=dp[j-1];bi=j-1}
-        if(bi>=0){nd[j]=best+sco(j,k);bk[j]=bi}
-      }
-      dp=nd;back.push(bk);
-    }
-    let j=0;for(let i=1;i<M;i++)if(dp[i]>dp[j])j=i;
-    if(dp[j]===-Infinity)continue;
-    cuts=[cand[j].pos];
-    for(let k=N-3;k>=0;k--){j=back[k][j];cuts.unshift(cand[j].pos)}
-    break;
+    if(cand.length<N-1)continue;
+    const r=alignCuts(cand,bnd,nf);
+    if(r&&(!best||r.cost<best.cost))best=r;
   }
-  if(!cuts)cuts=exp.map(Math.round);   // запасной вариант: пропорционально тексту
-  // Финальная обрезка: от каждого разреза отступаем во все стороны, пока не кончится
-  // тишина — так пауза-маркер целиком удаляется и не прилипает ни к одной из частей.
+  const cuts=best?best.cuts:exp.map(Math.round);       // запасной вариант: пропорционально тексту
+  // Финальная обрезка: от каждого разреза отступаем, пока не кончится тишина —
+  // так пауза-разрыв целиком удаляется и не прилипает ни к одной из частей.
   const th=p90*.08,out=[];let prev=0;
   [...cuts,nf].forEach(c=>{
     let a=prev,b=c;
@@ -948,7 +971,7 @@ function planHTML(){
     return`<s data-i="${ix}" style="height:${Math.max(8,Math.round(v*100))}%;${ix<0?'':'background:'+col(ix)}"></s>`;
   }).join('');
   const labs=items.map((o,i)=>`<span style="left:${(o.r[0]+o.r[1])/2/plan.n*100}%;color:${col(i)}">${getStartNum()+i}</span>`).join('');
-  return`<div class="plan"><div class="ph"><b>План разрезки</b><span>${items.length} ${items.length<5?'части':'частей'} · ${fmt(plan.total)}</span></div><div class="pw" id="pw">${bars}</div><div class="pn">${labs}</div></div>`;
+  return`<div class="plan"><div class="ph"><b>План разрезки</b><span>${items.length} ${items.length<5?'части':'частей'} · ${fmt(plan.total)}</span></div><div class="pw" id="pw"><i class="hd"></i>${bars}</div><div class="pn">${labs}</div></div>`;
 }
 function render(){
   const res=$('res');res.innerHTML='';
@@ -960,29 +983,34 @@ function render(){
     d.innerHTML=`<button class="pl" title="Играть"><svg viewBox="0 0 24 24"><path d="${PLAY}"/></svg></button><div class="mid"><div class="wf">${it.pk.map(v=>`<s style="height:${Math.max(14,Math.round(v*100))}%"></s>`).join('')}</div><div class="meta"><span class="t">${fmt(it.dur)}</span><span class="nm"></span></div><div class="tx"></div></div><button class="sv" title="Скачать"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg></button>`;
     d.querySelector('.nm').textContent=fname;d.querySelector('.tx').textContent=it.text;
     const ic=d.querySelector('.pl path'),bars=[...d.querySelectorAll('.wf s')],tm=d.querySelector('.t');
-    const paint=()=>{const r=au.duration?au.currentTime/au.duration:0;bars.forEach((b,k)=>b.classList.toggle('p',k<r*bars.length))};
+    au.preload='auto';
+    const dur=()=>(isFinite(au.duration)&&au.duration>0)?au.duration:it.dur;
+    const head=$('pw')&&$('pw').querySelector('.hd');
+    const paint=()=>{
+      const r=Math.min(1,au.currentTime/dur());
+      bars.forEach((b,k)=>b.classList.toggle('p',k<r*bars.length));
+      if(head&&plan){head.style.display='block';head.style.left=((it.r[0]+r*(it.r[1]-it.r[0]))/plan.n*100)+'%'}
+    };
     au.ontimeupdate=()=>{paint();tm.textContent=fmt(au.currentTime)};
     au.onplay=()=>ic.setAttribute('d',PAUSE);
     au.onpause=()=>ic.setAttribute('d',PLAY);
-    au.onended=()=>{au.currentTime=0;paint();tm.textContent=fmt(it.dur)};
+    au.onended=()=>{au.currentTime=0;paint();tm.textContent=fmt(it.dur);if(head)head.style.display='none'};
     d.querySelector('.pl').onclick=()=>{if(au.paused){items.forEach(o=>o!==it&&o.au.pause());au.play()}else au.pause()};
-    d.querySelector('.wf').onclick=e=>{
-      const r=e.currentTarget.getBoundingClientRect();
-      au.currentTime=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*(au.duration||it.dur);
-      paint();
+    // перемотка: куда нажал (или провёл) — оттуда и играет
+    scrub(d.querySelector('.wf'),frac=>{
       items.forEach(o=>o!==it&&o.au.pause());
-      au.play().catch(()=>{});
-    };
+      au.currentTime=frac*dur();
+      paint();tm.textContent=fmt(au.currentTime);
+      if(au.paused)au.play().catch(()=>{});
+    });
     d.querySelector('.sv').onclick=()=>saveFile(i);
     it.btn=d.querySelector('.pl');
     res.appendChild(d);
   });
   const pw=$('pw');
-  // Клик по общему «Плану разрезки» перематывает не с начала нужной части, а ровно
-  // в ту позицию, по которой кликнули, — и сразу начинает воспроизведение оттуда.
-  if(pw)pw.onclick=e=>{
-    const r=pw.getBoundingClientRect();
-    const frac=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+  // «План разрезки»: клик (или протяжка) перематывает ровно в ту позицию, куда ткнули,
+  // и сразу играет оттуда; переход через границу частей переключает воспроизведение на соседний фрагмент.
+  if(pw)scrub(pw,frac=>{
     const framePos=frac*plan.n;
     const i=items.findIndex(o=>framePos>=o.r[0]&&framePos<o.r[1]);
     if(i<0)return;
@@ -990,7 +1018,16 @@ function render(){
     items.forEach(o=>{if(o!==it)o.au.pause()});
     it.au.currentTime=local*(it.au.duration||it.dur);
     it.au.play().catch(()=>{});
-  };
+  });
+}
+// Общая перемотка: нажатие ставит позицию, протяжка пальцем/мышью её двигает.
+function scrub(node,fn){
+  let down=false;
+  const at=e=>{const r=node.getBoundingClientRect();return Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))};
+  node.addEventListener('pointerdown',e=>{down=true;try{node.setPointerCapture(e.pointerId)}catch(_){}e.preventDefault();fn(at(e))});
+  node.addEventListener('pointermove',e=>{if(down)fn(at(e))});
+  const up=()=>{down=false};
+  node.addEventListener('pointerup',up);node.addEventListener('pointercancel',up);
 }
 
 function fileName(t,pre){
