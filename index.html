@@ -147,7 +147,7 @@ const VOICES=[
 const COOLDOWN=4000;
 const $=id=>document.getElementById(id);
 const el={key:$('key'),voice:$('voice'),text:$('text'),gen:$('gen'),dl:$('dl'),player:$('player'),toast:$('toast'),tier:$('tier')};
-let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='';
+let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='';
 
 el.voice.innerHTML=VOICES.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}, ${v[2]}</option>`).join('');
 
@@ -267,7 +267,7 @@ async function generate(){
     const rate=+((part.mimeType||'').match(/rate=(\d+)/)?.[1]||24000);
     const bytes=b64ToBytes(part.data);
     lastBlob=pcmToWav(new Int16Array(bytes.buffer,0,bytes.length>>1),rate);
-    lastVoice=voice;
+    lastVoice=voice;lastText=text;
     if(lastUrl)URL.revokeObjectURL(lastUrl);
     lastUrl=URL.createObjectURL(lastBlob);
     el.player.src=lastUrl;
@@ -283,11 +283,20 @@ async function generate(){
   }
 }
 
+function fileName(){
+  // начало текста до первого знака конца фразы (. ? ! … : ; перенос строки)
+  let t=lastText.split(/[.?!…:;\n]/)[0];
+  t=t.replace(/[^\p{L}\p{N}\s-]/gu,' ').replace(/\s+/g,' ').trim();
+  if(t.length>40){t=t.slice(0,40);const i=t.lastIndexOf(' ');if(i>15)t=t.slice(0,i)}
+  t=t.trim().replace(/\s/g,'_');
+  if(t)return t+'.wav';
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return `tts_${lastVoice}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.wav`;
+}
 function download(){
   if(!lastBlob)return;
-  const a=document.createElement('a'),d=new Date(),p=n=>String(n).padStart(2,'0');
-  a.href=lastUrl;
-  a.download=`tts_${lastVoice}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.wav`;
+  const a=document.createElement('a');
+  a.href=lastUrl;a.download=fileName();
   document.body.appendChild(a);a.click();a.remove();
 }
 $('reset').onclick=()=>{
