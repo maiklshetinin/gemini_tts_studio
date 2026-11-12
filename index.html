@@ -8,12 +8,12 @@
 :root{
   --bg:#fff;--text:#1a1a1a;--muted:#6f6f6f;--line:#e8e8e8;--field:#fff;--soft:#f1f1f1;--soft-h:#e7e7e7;
   --btn:#1a1a1a;--btn-t:#fff;--btn-h:#000;--link:#1a5fb4;--track:#e6eef8;--bar:#6aa9e9;--bar-hi:#c53030;
-  --ok:#1f8a4c;--warn:#b45309;--err:#c53030;--focus:#2b7de0;
+  --ok:#1f8a4c;--warn:#b45309;--err:#c53030;--focus:#2b7de0;--wf:#b7c2d0;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#1f1f1e;--text:#ececec;--muted:#9a9a98;--line:#33332f;--field:#262625;--soft:#2d2d2b;--soft-h:#383836;
   --btn:#ececec;--btn-t:#1a1a1a;--btn-h:#fff;--link:#6aa9e9;--track:#2c3440;--bar:#4f8fd6;--bar-hi:#e05b5b;
-  --ok:#4cc38a;--warn:#e0a23c;--err:#e05b5b;
+  --ok:#4cc38a;--warn:#e0a23c;--err:#e05b5b;--wf:#56606e;
 }}
 *{box-sizing:border-box;margin:0}
 body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:28px 16px;display:flex;justify-content:center}
@@ -67,6 +67,46 @@ audio.on{display:block}
 .bar i.hi{background:var(--bar-hi)}
 .pct{text-align:right;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 @media (max-width:520px){.usage{grid-template-columns:1fr auto}.usage .bar{grid-column:1/-1;order:3;margin-top:-8px}}
+[hidden]{display:none!important}
+.seg{display:inline-flex;background:var(--soft);border-radius:9px;padding:3px;align-self:flex-start}
+.seg button{border:0;background:none;padding:5px 12px;border-radius:7px;font-size:13px;cursor:pointer;color:var(--muted)}
+.seg button.on{background:var(--bg);color:var(--text);font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.res{display:flex;flex-direction:column;gap:6px}.res:empty{display:none}
+.msg{--c:var(--focus);display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--c) 12%,transparent);border-radius:16px 16px 16px 4px;padding:8px 8px 8px 8px}
+.pl{width:38px;height:38px;border-radius:50%;border:0;background:var(--c);cursor:pointer;flex:none;display:grid;place-items:center}
+.pl svg{width:20px;height:20px;fill:#fff}
+.mid{flex:1;min-width:0}
+.wf{display:flex;align-items:center;gap:2px;height:28px;cursor:pointer}
+.wf s{flex:1;min-width:2px;max-width:4px;border-radius:2px;background:var(--wf);display:block;text-decoration:none}
+.wf s.p{background:var(--c)}
+.meta{display:flex;gap:8px;font-size:12px;color:var(--muted);margin-top:2px;min-width:0}
+.meta .t{font-variant-numeric:tabular-nums;flex:none}
+.nm{color:var(--c);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv{border:0;background:none;color:var(--muted);cursor:pointer;padding:7px;border-radius:8px;flex:none}
+.sv:hover{background:var(--soft-h);color:var(--text)}
+.sv svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block}
+.ed{position:relative;--gut:0px}
+.ed.multi{--gut:40px}
+.mir,.ed textarea{font:inherit;line-height:1.55;padding:9px 12px 9px calc(12px + var(--gut));border:1px solid transparent;border-radius:10px;white-space:pre-wrap;overflow-wrap:break-word;tab-size:4}
+.mir{position:absolute;inset:0;overflow:hidden;color:transparent;background:var(--field);pointer-events:none;user-select:none}
+.ed textarea{position:relative;display:block;background:transparent;border-color:var(--line);resize:none;min-height:140px;max-height:320px;scrollbar-width:none}
+.ed textarea::-webkit-scrollbar{display:none}
+.ln{position:relative;min-height:1.55em;margin:0 -12px 0 calc(-12px - var(--gut));padding:0 12px 0 calc(12px + var(--gut))}
+.ed.multi .ln.p{background:color-mix(in srgb,var(--c) 15%,transparent);box-shadow:inset 3px 0 0 var(--c)}
+.ln.sep{display:flex;align-items:center;gap:8px;height:23.25px;min-height:0;color:var(--c);font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden}
+.ln.sep::before,.ln.sep::after{content:'';flex:1;border-top:1.5px dashed color-mix(in srgb,var(--c) 55%,transparent)}
+.ln.sep span{max-width:75%;overflow:hidden;text-overflow:ellipsis}
+.ed.multi .ln[data-n]::before{content:attr(data-n);position:absolute;left:10px;top:0;font-size:12px;line-height:23.25px;font-weight:600;color:var(--c)}
+.fn{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.fn:empty{display:none}
+.fi{--c:var(--focus);background:color-mix(in srgb,var(--c) 14%,transparent);border-left:3px solid var(--c);border-radius:6px;padding:3px 9px;font-size:12px;color:var(--text);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fi b{color:var(--c);font-weight:600;margin-right:6px}
+.plan{padding:2px 0 8px}
+.ph{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.ph span{color:var(--muted)}
+.pw{display:flex;align-items:center;gap:1px;height:48px;cursor:pointer}
+.pw s{flex:1;min-width:1px;border-radius:2px;background:var(--wf);display:block;text-decoration:none}
+.pn{position:relative;height:16px;margin-top:3px;font-size:11px;font-weight:600}
+.pn span{position:absolute;transform:translateX(-50%)}
 </style>
 </head>
 <body>
@@ -95,6 +135,7 @@ audio.on{display:block}
     </div>
 
     <div class="field">
+      <div class="chips"><div class="seg" id="seg"><button data-m="one">Одним файлом</button><button data-m="multi">Резать на части</button></div><span class="lbl" id="segHint" hidden>Пустая строка = разрез на новый файл</span></div>
       <div class="chips">
         <span class="lbl">Пример</span>
         <button class="chip" data-l="ru" data-t="Привет! Кажется, нейросети научились говорить интонационно красиво.">Русский</button>
@@ -103,14 +144,16 @@ audio.on{display:block}
         <span class="sp"></span>
         <span class="count" id="count">0 симв.</span>
       </div>
-      <textarea id="text" placeholder="Введите текст для озвучки…"></textarea>
+      <div class="ed" id="ed"><div class="mir" id="mir" aria-hidden="true"></div><textarea id="text" spellcheck="false" placeholder="Введите текст для озвучки…"></textarea></div>
+      <div class="fn" id="fn"></div>
     </div>
 
     <div class="actions">
       <button class="btn primary" id="gen"><span class="spin"></span><span id="genText">Озвучить</span></button>
       <button class="btn" id="dl" disabled>Скачать WAV</button>
+      <button class="btn" id="dlAll" hidden>Все части</button>
     </div>
-    <audio id="player" controls></audio>
+    <div class="res" id="res"></div>
     <div class="toast" id="toast"></div>
   </section>
 
@@ -145,13 +188,15 @@ const VOICES=[
   ["Algenib","мужской","с хрипотцой"],["Algieba","мужской","дикторский"]
 ];
 const COOLDOWN=4000;
+const COLORS=['#2b7de0','#e0603a','#2fa36b','#a855d6','#d99a1e','#d6457f','#1fa3b8','#7d8f1f'];
 const $=id=>document.getElementById(id);
-const el={key:$('key'),voice:$('voice'),text:$('text'),gen:$('gen'),dl:$('dl'),player:$('player'),toast:$('toast'),tier:$('tier')};
-let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='';
+const el={key:$('key'),voice:$('voice'),text:$('text'),gen:$('gen'),dl:$('dl'),toast:$('toast'),tier:$('tier')};
+let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='',items=[],plan=null,mode='multi';
 
 el.voice.innerHTML=VOICES.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}, ${v[2]}</option>`).join('');
 
 const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+try{mode=localStorage.getItem('gtts_mode')||'multi'}catch(e){}
 try{
   el.key.value=localStorage.getItem('gtts_key')||'';
   const v=localStorage.getItem('gtts_voice');if(v)el.voice.value=v;
@@ -185,7 +230,59 @@ try{
 }catch(e){}
 
 el.text.addEventListener('input',count);
-function count(){$('count').textContent=el.text.value.length+' симв.'}
+function count(){
+  const t=el.text.value,n=parseParts(t).length;
+  $('count').textContent=(mode==='multi'?n+' ч. · ':'')+t.length+' симв.';
+  syncEd();
+}
+const escH=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+// подсветка строк (слой под textarea) + превью имён файлов
+// часть = блок строк, отделённый от других пустой строкой
+function parseParts(t){
+  const out=[];let cur=[];
+  t.split('\n').forEach(l=>{if(l.trim())cur.push(l.trim());else if(cur.length){out.push(cur.join(' '));cur=[]}});
+  if(cur.length)out.push(cur.join(' '));
+  return out;
+}
+function syncEd(){
+  const ta=el.text,mir=$('mir'),multi=mode==='multi',raw=ta.value.split('\n');
+  $('ed').classList.toggle('multi',multi);
+  const parts=parseParts(ta.value),col=i=>COLORS[i%COLORS.length],pad=i=>String(i+1).padStart(2,'0');
+  const nm=i=>fileName(parts[i],pad(i)+'_');
+  let n=-1,prev=false,html='';
+  raw.forEach(l=>{
+    const body=escH(l)||'\u200b';
+    if(multi&&l.trim()){
+      if(!prev)n++;
+      html+=`<div class="ln p"${prev?'':` data-n="${n+1}"`} style="--c:${col(n)}">${body}</div>`;
+      prev=true;
+    }else{
+      if(multi&&prev&&n+1<parts.length)html+=`<div class="ln sep" style="--c:${col(n+1)}"><span>✂ ${pad(n+1)} · ${escH(nm(n+1))}</span></div>`;
+      else html+=`<div class="ln">${body}</div>`;
+      prev=false;
+    }
+  });
+  mir.innerHTML=html;
+  ta.style.height='auto';
+  ta.style.height=Math.min(ta.scrollHeight+2,320)+'px';
+  mir.scrollTop=ta.scrollTop;
+  const names=multi?parts.map((p,i)=>[pad(i),nm(i),col(i)]):(ta.value.trim()?[['',fileName(ta.value.trim(),'')]]:[]);
+  const MAX=24;
+  $('fn').innerHTML=names.slice(0,MAX).map(x=>`<span class="fi" style="--c:${x[2]||'var(--focus)'}" title="${escH(x[1])}">${x[0]?'<b>'+x[0]+'</b>':''}${escH(x[1])}</span>`).join('')
+    +(names.length>MAX?`<span class="count">и ещё ${names.length-MAX}</span>`:'');
+}
+el.text.addEventListener('scroll',()=>{$('mir').scrollTop=el.text.scrollTop});
+window.addEventListener('resize',syncEd);
+const segBtns=[...document.querySelectorAll('#seg button')];
+function setMode(m){
+  mode=m;save('gtts_mode',m);
+  segBtns.forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  $('segHint').hidden=m!=='multi';
+  el.text.placeholder=m==='multi'?'Части разделяются пустой строкой — каждая станет отдельным файлом. Готовую запись скрипт сам разрежет по паузам.':'Введите текст для озвучки…';
+  count();
+}
+segBtns.forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+setMode(mode);
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')generate()});
 
 function toast(msg,type){
@@ -241,6 +338,8 @@ async function generate(){
   if(!key){toast('Введите API-ключ Gemini.','error');el.key.focus();return}
   if(!text){toast('Введите текст для озвучки.','error');el.text.focus();return}
   stamps=stamps.filter(t=>now-t<60000);
+  const multi=mode==='multi',lines=parseParts(text);
+  const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join('\n'):text;
   if(stamps.length>=maxRPM){toast('Лимит запросов в минуту исчерпан. Подождите.','error');return}
   if(now<cdEnd){toast('Подождите '+((cdEnd-now)/1000).toFixed(1)+' сек.','warning');return}
 
@@ -251,7 +350,7 @@ async function generate(){
       method:'POST',
       headers:{'Content-Type':'application/json','x-goog-api-key':key},
       body:JSON.stringify({
-        contents:[{parts:[{text}]}],
+        contents:[{parts:[{text:sendText}]}],
         generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
       })
     });
@@ -266,15 +365,21 @@ async function generate(){
     if(!part)throw new Error('API не вернуло аудио.');
     const rate=+((part.mimeType||'').match(/rate=(\d+)/)?.[1]||24000);
     const bytes=b64ToBytes(part.data);
-    lastBlob=pcmToWav(new Int16Array(bytes.buffer,0,bytes.length>>1),rate);
-    lastVoice=voice;lastText=text;
+    const pcm=new Int16Array(bytes.buffer,0,bytes.length>>1);
+    lastBlob=pcmToWav(pcm,rate);lastVoice=voice;lastText=text;
     if(lastUrl)URL.revokeObjectURL(lastUrl);
     lastUrl=URL.createObjectURL(lastBlob);
-    el.player.src=lastUrl;
-    el.player.classList.add('on');
-    el.dl.disabled=false;
-    el.player.play().catch(()=>{});
-    toast('Готово. Голос: '+voice,'success');
+    items.forEach(o=>{o.au.pause();URL.revokeObjectURL(o.url)});
+    const ranges=multi?split(pcm,rate,lines):[[0,pcm.length]];
+    items=ranges.map((r,i)=>{
+      const sl=pcm.slice(r[0],r[1]),bl=pcmToWav(sl,rate);
+      return{r,text:multi?(lines[i]||''):text,url:URL.createObjectURL(bl),pk:peaks(sl,36),dur:sl.length/rate};
+    });
+    plan={pk:peaks(pcm,110),n:pcm.length,total:pcm.length/rate};
+    render();
+    el.dl.disabled=false;$('dlAll').hidden=items.length<2;
+    if(items.length===1)items[0].au.play().catch(()=>{});
+    toast('Готово. Голос: '+voice+(items.length>1?' · частей: '+items.length:''),'success');
   }catch(err){
     console.error(err);
     toast('Ошибка: '+err.message,'error');
@@ -283,28 +388,103 @@ async function generate(){
   }
 }
 
-function fileName(){
-  // начало текста до первого знака конца фразы (. ? ! … : ; перенос строки)
-  let t=lastText.split(/[.?!…:;\n]/)[0];
-  t=t.replace(/[^\p{L}\p{N}\s-]/gu,' ').replace(/\s+/g,' ').trim();
+const PLAY='M8 5v14l11-7z',PAUSE='M7 5h4v14H7zM13 5h4v14h-4z';
+const fmt=x=>Math.floor(Math.round(x)/60)+':'+String(Math.round(x)%60).padStart(2,'0');
+
+// режем PCM по самым длинным паузам: N строк -> N-1 разрезов
+function split(pcm,rate,lines){
+  const N=lines.length;if(N<2)return[[0,pcm.length]];
+  const fr=Math.round(rate/100),nf=Math.floor(pcm.length/fr),e=new Float32Array(nf);
+  for(let i=0;i<nf;i++){let q=0;for(let j=i*fr;j<(i+1)*fr;j++){q+=pcm[j]*pcm[j]}e[i]=Math.sqrt(q/fr)}
+  const p90=[...e].sort((x,y)=>x-y)[Math.floor(nf*.9)]||1;
+  let cuts=null;
+  for(const k of[.04,.08,.15,.25]){
+    const thr=p90*k,gaps=[];let st=-1;
+    for(let i=0;i<=nf;i++){
+      const q=i<nf&&e[i]<thr;
+      if(q&&st<0)st=i;
+      if(!q&&st>=0){if(st>0&&i<nf)gaps.push({a:st,b:i});st=-1}
+    }
+    if(gaps.length>=N-1){
+      cuts=gaps.sort((x,y)=>(y.b-y.a)-(x.b-x.a)).slice(0,N-1).map(g=>(g.a+g.b)>>1).sort((x,y)=>x-y);
+      break;
+    }
+  }
+  if(!cuts){ // запасной вариант: пропорционально длине строк
+    const tot=lines.reduce((x,l)=>x+l.length,0);let c=0;
+    cuts=lines.slice(0,-1).map(l=>Math.round(nf*(c+=l.length)/tot));
+  }
+  const th=p90*.08,out=[];let prev=0;
+  [...cuts,nf].forEach(c=>{
+    let a=prev,b=c;
+    while(a<b&&e[a]<th)a++;
+    while(b>a&&e[b-1]<th)b--;
+    a=Math.max(prev,a-6);b=Math.min(c,b+6);
+    out.push(b>a?[a*fr,b*fr]:[prev*fr,c*fr]);prev=c;
+  });
+  return out;
+}
+function peaks(pcm,n){
+  const out=[],st=Math.max(1,Math.floor(pcm.length/n));
+  for(let i=0;i<n;i++){let m=0;for(let j=i*st;j<Math.min(pcm.length,(i+1)*st);j++){const v=Math.abs(pcm[j]);if(v>m)m=v}out.push(m)}
+  const mx=Math.max(...out,1);return out.map(v=>v/mx);
+}
+
+// сообщения в стиле Telegram
+function planHTML(){
+  const n=plan.pk.length,col=i=>COLORS[i%COLORS.length];
+  const bars=plan.pk.map((v,k)=>{
+    const pos=(k+.5)/n*plan.n,ix=items.findIndex(o=>pos>=o.r[0]&&pos<o.r[1]);
+    return`<s data-i="${ix}" style="height:${Math.max(8,Math.round(v*100))}%;${ix<0?'':'background:'+col(ix)}"></s>`;
+  }).join('');
+  const labs=items.map((o,i)=>`<span style="left:${(o.r[0]+o.r[1])/2/plan.n*100}%;color:${col(i)}">${i+1}</span>`).join('');
+  return`<div class="plan"><div class="ph"><b>План разрезки</b><span>${items.length} ${items.length<5?'части':'частей'} · ${fmt(plan.total)}</span></div><div class="pw" id="pw">${bars}</div><div class="pn">${labs}</div></div>`;
+}
+function render(){
+  const res=$('res');res.innerHTML='';
+  if(items.length>1&&plan)res.insertAdjacentHTML('beforeend',planHTML());
+  items.forEach((it,i)=>{
+    const au=it.au=new Audio(it.url),d=document.createElement('div'),many=items.length>1;
+    d.className='msg';d.style.setProperty('--c',COLORS[i%COLORS.length]);
+    const fname=fileName(it.text,many?String(i+1).padStart(2,'0')+'_':'');
+    d.innerHTML=`<button class="pl" title="Играть"><svg viewBox="0 0 24 24"><path d="${PLAY}"/></svg></button><div class="mid"><div class="wf">${it.pk.map(v=>`<s style="height:${Math.max(14,Math.round(v*100))}%"></s>`).join('')}</div><div class="meta"><span class="t">${fmt(it.dur)}</span><span class="nm"></span></div><div class="tx"></div></div><button class="sv" title="Скачать"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg></button>`;
+    d.querySelector('.nm').textContent=fname;d.querySelector('.tx').textContent=it.text;
+    const ic=d.querySelector('.pl path'),bars=[...d.querySelectorAll('.wf s')],tm=d.querySelector('.t');
+    const paint=()=>{const r=au.duration?au.currentTime/au.duration:0;bars.forEach((b,k)=>b.classList.toggle('p',k<r*bars.length))};
+    au.ontimeupdate=()=>{paint();tm.textContent=fmt(au.currentTime)};
+    au.onplay=()=>ic.setAttribute('d',PAUSE);
+    au.onpause=()=>ic.setAttribute('d',PLAY);
+    au.onended=()=>{au.currentTime=0;paint();tm.textContent=fmt(it.dur)};
+    d.querySelector('.pl').onclick=()=>{if(au.paused){items.forEach(o=>o!==it&&o.au.pause());au.play()}else au.pause()};
+    d.querySelector('.wf').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();au.currentTime=(e.clientX-r.left)/r.width*(au.duration||it.dur);paint()};
+    d.querySelector('.sv').onclick=()=>dl(it.url,fname);
+    it.btn=d.querySelector('.pl');
+    res.appendChild(d);
+  });
+  const pw=$('pw');
+  if(pw)pw.onclick=e=>{const i=e.target.dataset&&+e.target.dataset.i;if(i>=0&&items[i])items[i].btn.click()};
+}
+
+function fileName(t,pre){
+  t=t.replace(/^\s*\d+\s*[.)]\s*/,'');
+  let acc='';for(const g of t.split(/[.?!…:;\n]/)){acc=(acc+' '+g).trim();if(acc.split(/\s+/).length>=3)break}
+  t=acc.replace(/[^\p{L}\p{N}\s-]/gu,' ').replace(/\s+/g,' ').trim();
   if(t.length>40){t=t.slice(0,40);const i=t.lastIndexOf(' ');if(i>15)t=t.slice(0,i)}
   t=t.trim().replace(/\s/g,'_');
-  if(t)return t+'.wav';
+  if(t)return(pre||'')+t+'.wav';
   const d=new Date(),p=n=>String(n).padStart(2,'0');
-  return `tts_${lastVoice}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.wav`;
+  return(pre||'')+`tts_${lastVoice||el.voice.value}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.wav`;
 }
-function download(){
-  if(!lastBlob)return;
-  const a=document.createElement('a');
-  a.href=lastUrl;a.download=fileName();
-  document.body.appendChild(a);a.click();a.remove();
-}
+function dl(url,name){const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove()}
+function download(){if(lastBlob)dl(lastUrl,fileName(lastText,''))}
+$('dlAll').onclick=()=>items.forEach((it,i)=>setTimeout(()=>dl(it.url,fileName(it.text,String(i+1).padStart(2,'0')+'_')),i*400));
 $('reset').onclick=()=>{
   if(!confirm('Удалить сохранённые ключ, голос, тариф и язык?'))return;
-  ['gtts_key','gtts_voice','gtts_tier','gtts_lang'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
+  ['gtts_key','gtts_voice','gtts_tier','gtts_lang','gtts_mode'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
   el.key.value='';el.voice.selectedIndex=0;el.tier.value='15';maxRPM=15;
   setChip('');save('gtts_lang','');
   try{localStorage.removeItem('gtts_lang')}catch(e){}
+  setMode('multi');try{localStorage.removeItem('gtts_mode')}catch(e){}
   tick();toast('Сохранённые данные удалены.','success');
 };
 el.gen.onclick=generate;
