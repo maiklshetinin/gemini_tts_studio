@@ -18,22 +18,34 @@
 *{box-sizing:border-box;margin:0}
 body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:28px 16px;display:flex;justify-content:center}
 .app{width:100%;max-width:640px}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
-h1{font-size:19px;font-weight:600}
+header{margin-bottom:10px}
+h1{font-size:16px;font-weight:600}
 h2{font-size:15px;font-weight:600}
 section{padding:20px 0;border-top:1px solid var(--line)}
 section:first-of-type{border-top:0;padding-top:0}
 .stack{display:flex;flex-direction:column;gap:16px}
-label,.lbl{font-size:13px;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:10px}
+label,.lbl,.hint{font-size:13px;color:var(--muted)}
 input,select,textarea,button{font:inherit;color:inherit}
 input[type=password],input[type=text],select,textarea{width:100%;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s}
 input:focus,select:focus,textarea:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(43,125,224,.15)}
 textarea{resize:vertical;min-height:140px;line-height:1.55}
 select{cursor:pointer}
 select.mini{width:auto;padding:6px 10px;font-size:13px;background:var(--soft);border-color:transparent}
-.keywrap{position:relative}
-.keywrap input{padding-right:38px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
-.eye{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;padding:6px 8px;color:var(--muted)}
+#voice{width:auto;flex:0 1 220px;min-width:0}
+.voicebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.voicebar label{flex:none}
+.keyadd{display:flex;gap:8px}
+.keyadd input{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.keyadd .btn{height:42px;padding:0 16px}
+.keylist{display:flex;flex-direction:column;gap:6px}
+.keylist:empty{display:none}
+.keyrow{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--soft)}
+.keyrow .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.keyrow.bad .dot{background:var(--err)}
+.keyrow .kv{flex:1;min-width:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.keyrow .ks{font-size:12px;color:var(--muted);flex:none}
+.keyrow .x{flex:none}
 .head{display:flex;justify-content:space-between;align-items:baseline}
 a{color:var(--link);text-decoration:none;font-size:13px}a:hover{text-decoration:underline}
 .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -65,7 +77,7 @@ audio.on{display:block}
 .bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--bar);transition:width .3s,background .3s}
 .bar i.hi{background:var(--bar-hi)}
 .pct{text-align:right;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-@media (max-width:520px){.usage{grid-template-columns:1fr auto}.usage .bar{grid-column:1/-1;order:3;margin-top:-8px}}
+@media (max-width:520px){.usage{grid-template-columns:1fr auto}.usage .bar{grid-column:1/-1;order:3;margin-top:-8px}#voice{min-width:0}}
 [hidden]{display:none!important}
 .res{display:flex;flex-direction:column;gap:6px}.res:empty{display:none}
 .msg{--c:var(--focus);display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--c) 12%,transparent);border-radius:16px 16px 16px 4px;padding:8px 8px 8px 8px}
@@ -101,6 +113,11 @@ audio.on{display:block}
 .x:hover{opacity:1;background:var(--soft-h)}
 .add{align-self:flex-start;border:1px dashed var(--line);background:none;border-radius:10px;padding:6px 12px;font-size:13px;color:var(--muted);cursor:pointer}
 .add:hover{color:var(--text);border-color:var(--muted)}
+.partbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.numwrap{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);white-space:nowrap}
+.numwrap input{width:44px;background:var(--soft);border:1px solid transparent;border-radius:8px;padding:5px 6px;font-size:13px;color:var(--text);text-align:center;-moz-appearance:textfield}
+.numwrap input::-webkit-outer-spin-button,.numwrap input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.numwrap input:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(43,125,224,.15)}
 </style>
 </head>
 <body>
@@ -108,43 +125,37 @@ audio.on{display:block}
 
   <header>
     <h1>Gemini TTS Studio</h1>
-    <select id="tier" class="mini" title="Тариф">
-      <option value="15">Free · 15 в минуту</option>
-      <option value="60">Pay-as-you-go · 60 в минуту</option>
-    </select>
   </header>
 
   <section class="stack">
     <div class="field">
-      <div class="head"><label for="key">API-ключ Gemini</label><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Получить ключ</a></div>
-      <div class="keywrap">
-        <input type="password" id="key" name="gemini-api-key-field" placeholder="AIzaSy…" autocomplete="new-password" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
-        <button class="eye" id="eye" type="button" title="Показать / скрыть">👁</button>
+      <div class="head"><label for="key">API-ключи Gemini</label><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Получить ключ</a></div>
+      <div class="keyadd">
+        <input type="text" id="key" name="gemini-api-key-field" placeholder="AIzaSy…" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
+        <button class="btn" id="addKey" type="button" style="height:42px;padding:0 16px">Добавить</button>
       </div>
+      <div class="keylist" id="keylist"></div>
+      <div class="hint" id="keyHint" hidden>Если на одном ключе закончится квота, озвучка сама попробует следующий из списка.</div>
     </div>
 
     <div class="field">
-      <label for="voice">Голос</label>
-      <select id="voice"></select>
-    </div>
-
-    <div class="field">
-      <div class="chips">
-        <span class="lbl">Пример</span>
+      <div class="voicebar">
+        <label for="voice">Голос</label>
+        <select id="voice"></select>
+        <span class="sp"></span>
+        <span class="lbl">Язык</span>
         <button class="chip" data-l="ru" data-t="Привет! Кажется, нейросети научились говорить интонационно красиво.">Русский</button>
         <button class="chip" data-l="pl" data-t="Cześć! Dzisiaj jest piękny dzień na naukę nowego języka.">Польский</button>
         <button class="chip" data-l="en" data-t="Hello there! Gemini text-to-speech sounds astonishingly natural.">English</button>
-        <span class="sp"></span>
-        <span class="count" id="count">0 симв.</span>
       </div>
-      <div class="cells" id="cells"></div>
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    </div>
+
+    <div class="field">
+      <div class="cells" id="cells" title="Shift+Enter — разрезать часть по курсору. Backspace в начале строки — склеить с предыдущей."></div>
+      <div class="partbar">
         <button class="add" id="add" type="button">+ Добавить часть</button>
-        <label class="lbl" style="display:flex;align-items:center;gap:6px">Номер первой части
-          <input type="number" id="startNum" min="1" max="999" value="1" style="width:58px;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:13px;color:var(--text)">
-        </label>
+        <label class="numwrap" title="С какого номера начнётся нумерация файлов">№ первой части<input type="number" id="startNum" min="1" max="999" value="1"></label>
       </div>
-      <div class="hint">Enter — перенос строки внутри части. Shift+Enter — разрезать часть в месте курсора, «+ Добавить часть» — новая пустая. Каждая часть станет отдельным файлом. «Номер первой части» задаёт, с какого числа начинается нумерация файлов — остальные идут по порядку.</div>
     </div>
 
     <div class="actions">
@@ -168,16 +179,12 @@ audio.on{display:block}
       <div><div class="name">Пауза</div><div class="sub">Между запросами 4 сек</div></div>
       <div class="bar"><i id="cdBar"></i></div>
       <div class="pct" id="cdPct">готов</div>
-
-      <div><div class="name">В день</div><div class="sub" id="daySub">Оценка по вашим запросам</div></div>
-      <div class="bar"><i id="dayBar"></i></div>
-      <div class="pct" id="dayPct">—</div>
     </div>
   </section>
 
   <section style="padding-bottom:0">
     <div class="head" style="align-items:center">
-      <div><div class="name" style="font-size:14px">Сохранённые данные</div><div class="sub" style="font-size:12px;color:var(--muted);margin-top:2px">Ключ, голос, тариф, номер части и язык хранятся в браузере (счётчик дневной квоты не сбрасывается — он отслеживает реальное состояние на стороне Google)</div></div>
+      <div><div class="name" style="font-size:14px">Сохранённые данные</div><div class="sub" style="font-size:12px;color:var(--muted);margin-top:2px">Ключи, голос и язык хранятся в браузере</div></div>
       <button class="btn" id="reset" style="height:36px;padding:0 14px;font-size:14px">Очистить</button>
     </div>
   </section>
@@ -504,67 +511,57 @@ const VOICES=[
 const COOLDOWN=4000;
 const COLORS=['#2b7de0','#e0603a','#2fa36b','#a855d6','#d99a1e','#d6457f','#1fa3b8','#7d8f1f'];
 const $=id=>document.getElementById(id);
-const el={key:$('key'),voice:$('voice'),gen:$('gen'),dl:$('dl'),toast:$('toast'),tier:$('tier'),fmt:$('fmt'),startNum:$('startNum')};
+const el={key:$('key'),voice:$('voice'),gen:$('gen'),dl:$('dl'),toast:$('toast'),fmt:$('fmt'),startNum:$('startNum')};
 const getStartNum=()=>{const n=parseInt(el.startNum.value,10);return(Number.isFinite(n)&&n>0)?n:1};
 let maxRPM=15,stamps=[],cdEnd=0,lastBlob=null,lastUrl=null,lastVoice='',lastText='',items=[],plan=null,fullPcm=null,fullRate=24000;
 
-// ---------- дневная квота (Gemini сам не сообщает остаток — узнаём только по ответу 429,
-// поэтому ведём свою оценку по успешным запросам и уточняем её точным лимитом/таймером
-// сброса, как только API их однажды покажет в тексте ошибки) ----------
-let dayCount=0,dayLimit=null,dayResetAt=0;
-try{
-  dayCount=+(localStorage.getItem('gtts_daycount')||0)||0;
-  const dl=localStorage.getItem('gtts_daylimit');dayLimit=dl?+dl:null;
-  dayResetAt=+(localStorage.getItem('gtts_dayreset')||0)||0;
-}catch(e){}
-function saveDay(){
-  try{
-    localStorage.setItem('gtts_daycount',dayCount);
-    if(dayLimit)localStorage.setItem('gtts_daylimit',dayLimit);
-    localStorage.setItem('gtts_dayreset',dayResetAt);
-  }catch(e){}
+// ---------- список API-ключей: если на одном кончилась квота, пробуем следующий ----------
+// keys: [{v:'AIzaSy...', x: мс-метка когда истекает блокировка по квоте (0 = не заблокирован)}]
+let keys=[];
+try{keys=JSON.parse(localStorage.getItem('gtts_keys')||'[]')||[]}catch(e){keys=[]}
+let keyPtr=0;
+function saveKeys(){try{localStorage.setItem('gtts_keys',JSON.stringify(keys))}catch(e){}}
+// Вытаскивает из текста ошибки Gemini время, через которое можно повторить попытку —
+// например "...Please retry in 11h35m33.826678868s." Используем это как длительность блокировки ключа.
+function parseRetryMs(msg){
+  const m=/retry in\s*(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:([\d.]+)s)?/i.exec(msg||'');
+  if(!m)return null;
+  const h=+(m[1]||0),mi=+(m[2]||0),s=+(m[3]||0),ms=(h*3600+mi*60+s)*1000;
+  return ms>0?ms:null;
 }
-function checkDayReset(){
-  if(dayResetAt&&Date.now()>=dayResetAt){dayCount=0;dayResetAt=0;saveDay()}
+function fmtLeft(ms){const hh=Math.floor(ms/3600000),mm=Math.floor((ms%3600000)/60000);return hh>0?`${hh}ч ${mm}м`:`${Math.max(1,mm)}м`}
+function renderKeys(){
+  const box=$('keylist');box.innerHTML='';
+  $('keyHint').hidden=keys.length<2;
+  const now=Date.now();
+  keys.forEach((k,i)=>{
+    const bad=k.x>now;
+    const row=document.createElement('div');row.className='keyrow'+(bad?' bad':'');
+    row.innerHTML=`<span class="kv"></span><span class="ks"></span><button class="x" type="button" title="Удалить">×</button>`;
+    row.querySelector('.kv').textContent=k.v;
+    row.querySelector('.ks').textContent=bad?`квота до сброса ~${fmtLeft(k.x-now)}`:'активен';
+    row.querySelector('.x').onclick=()=>{keys.splice(i,1);saveKeys();renderKeys()};
+    box.appendChild(row);
+  });
 }
-// Разбирает текст ошибки Gemini вида:
-// "Quota exceeded for metric: ...generate_content_free_tier_requests, limit: 10, ...
-//  Generate content requests per day limit exceeded on Free Tier. ... Please retry in 11h35m33s."
-function parseQuotaError(msg){
-  if(!msg)return;
-  const limM=/limit:\s*(\d+)/i.exec(msg);
-  const dailyM=/per day/i.exec(msg);
-  const retryM=/retry in\s*(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:([\d.]+)s)?/i.exec(msg);
-  if(limM)dayLimit=+limM[1];
-  if(retryM){
-    const h=+(retryM[1]||0),mi=+(retryM[2]||0),s=+(retryM[3]||0);
-    const ms=(h*3600+mi*60+s)*1000;
-    if(ms>0)dayResetAt=Date.now()+ms;
-  }
-  if(dailyM&&dayLimit)dayCount=dayLimit;
-  saveDay();
-}
+$('addKey').onclick=()=>{
+  const v=el.key.value.trim();
+  if(!v)return;
+  if(!keys.some(k=>k.v===v)){keys.push({v,x:0});saveKeys();renderKeys()}
+  el.key.value='';
+};
+el.key.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('addKey').click()}});
 
 el.voice.innerHTML=VOICES.map(v=>`<option value="${v[0]}">${v[0]} — ${v[1]}, ${v[2]}</option>`).join('');
 
 const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 try{
-  el.key.value=localStorage.getItem('gtts_key')||'';
   const v=localStorage.getItem('gtts_voice');if(v)el.voice.value=v;
-  const t=localStorage.getItem('gtts_tier');if(t){el.tier.value=t;maxRPM=+t}
   const sn=localStorage.getItem('gtts_startnum');if(sn)el.startNum.value=sn;
 }catch(e){}
+renderKeys();
 el.startNum.addEventListener('input',()=>{save('gtts_startnum',el.startNum.value);refresh();if(items.length)render()});
-const saveKey=()=>save('gtts_key',el.key.value.trim());
-el.key.addEventListener('input',saveKey);
-el.key.addEventListener('change',saveKey);
-// браузер мог подставить свой пароль после загрузки — возвращаем сохранённый ключ
-window.addEventListener('load',()=>setTimeout(()=>{
-  try{const k=localStorage.getItem('gtts_key');if(k&&el.key.value!==k)el.key.value=k}catch(e){}
-},400));
 el.voice.addEventListener('change',()=>save('gtts_voice',el.voice.value));
-el.tier.addEventListener('change',()=>{maxRPM=+el.tier.value;save('gtts_tier',el.tier.value);tick()});
-$('eye').onclick=()=>{el.key.type=el.key.type==='password'?'text':'password'};
 
 const chips=[...document.querySelectorAll('.chip')];
 function setChip(lang){
@@ -588,19 +585,18 @@ const grow=ta=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px'};
 function focusCell(c,pos){const t=taOf(c);t.focus();const p=pos==='end'?t.value.length:(pos||0);t.setSelectionRange(p,p)}
 
 function refresh(){
-  let k=0,chars=0;
+  let k=0;
   cellList().forEach(c=>{
     const ta=taOf(c),t=joinLines(ta.value),num=c.querySelector('.num'),fn=c.querySelector('.fnm');
     grow(ta);
     if(t){
-      const i=k++;chars+=t.length;const fileNum=getStartNum()+i;
+      const i=k++;const fileNum=getStartNum()+i;
       c.classList.remove('empty');c.style.setProperty('--c',COLORS[i%COLORS.length]);
       num.textContent=fileNum;fn.textContent=fileName(t,String(fileNum).padStart(2,'0')+'_');
     }else{
       c.classList.add('empty');c.style.removeProperty('--c');num.textContent='·';fn.textContent='';
     }
   });
-  $('count').textContent=(k>1?k+' ч. · ':'')+chars+' симв.';
 }
 function mkCell(text){
   const c=document.createElement('div');c.className='cell';
@@ -679,26 +675,8 @@ function tick(){
   $('cdBar').style.width=(cd/COOLDOWN*100)+'%';
   $('cdPct').textContent=cd>0?(cd/1000).toFixed(1)+' сек':'готов';
 
-  checkDayReset();
-  const dayLeft=dayResetAt>now?dayResetAt-now:0;
-  const fmtLeft=ms=>{const hh=Math.floor(ms/3600000),mm=Math.floor((ms%3600000)/60000);return hh>0?`${hh}ч ${mm}м`:`${mm}м`};
-  if(dayLimit){
-    const dp=Math.min(100,Math.round(dayCount/dayLimit*100));
-    $('dayBar').style.width=dp+'%';
-    $('dayBar').classList.toggle('hi',dp>=85);
-    $('dayPct').textContent=`${dayCount} из ${dayLimit} · ${dp}%`;
-    $('daySub').textContent=dayLeft?`Сброс через ${fmtLeft(dayLeft)}`:'Оценка по вашим запросам';
-  }else{
-    $('dayBar').style.width=Math.min(100,dayCount*8)+'%';
-    $('dayPct').textContent=`${dayCount} запрос(ов) сегодня`;
-    $('daySub').textContent='Лимит неизвестен — узнаём его из первой ошибки квоты';
-  }
-
   const h=$('heads');
-  if(dayLimit&&dayCount>=dayLimit&&dayLeft){
-    h.textContent=`Дневная квота Gemini исчерпана. Сброс через ${fmtLeft(dayLeft)}.`;
-    h.classList.add('show');
-  }else if(p>=85){
+  if(p>=85){
     h.textContent=`Внимание. Лимит запросов почти исчерпан, следующий слот освободится через ${reset} сек.`;
     h.classList.add('show');
   }else h.classList.remove('show');
@@ -726,10 +704,52 @@ function setBusy(b){
   $('genText').textContent=b?'Генерация…':'Озвучить';
 }
 
+// Пробует ключи по очереди (начиная с keyPtr): если на ключе кончилась квота (429),
+// блокирует его на разобранное из ошибки время и сразу пробует следующий. Любая
+// другая ошибка (не про квоту) прерывает попытки — переключать ключ тут бессмысленно.
+async function callGemini(sendText,voice){
+  if(!keys.length)throw new Error('Введите API-ключ Gemini.');
+  const now=Date.now();
+  const order=keys.map((_,i)=>(keyPtr+i)%keys.length);
+  let lastErr=null,triedAny=false;
+  for(const idx of order){
+    const k=keys[idx];
+    if(k.x>now)continue;
+    triedAny=true;
+    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-goog-api-key':k.v},
+      body:JSON.stringify({
+        contents:[{parts:[{text:sendText}]}],
+        generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
+      })
+    });
+    if(!res.ok){
+      let m='Ошибка сервера ('+res.status+')';
+      try{m=(await res.json()).error.message||m}catch(e){}
+      if(res.status===429){
+        keys[idx].x=Date.now()+(parseRetryMs(m)||10*60000);saveKeys();renderKeys();
+        lastErr=new Error(m);
+        continue;
+      }
+      throw new Error(m);
+    }
+    keyPtr=(idx+1)%keys.length;
+    return res.json();
+  }
+  if(!triedAny){
+    const soon=Math.min(...keys.map(k=>k.x||Infinity));
+    throw new Error(`Квота исчерпана на всех ключах (${keys.length}). Ближайший освободится через ${fmtLeft(soon-now)}.`);
+  }
+  throw lastErr||new Error('Не удалось получить аудио.');
+}
+
 async function generate(){
   if(el.gen.disabled)return;
-  const key=el.key.value.trim(),lines=parseParts(),text=lines.join(' '),voice=el.voice.value,now=Date.now();
-  if(!key){toast('Введите API-ключ Gemini.','error');el.key.focus();return}
+  const typed=el.key.value.trim();
+  if(typed&&!keys.some(k=>k.v===typed)){keys.push({v:typed,x:0});saveKeys();renderKeys();el.key.value=''}
+  const lines=parseParts(),text=lines.join(' '),voice=el.voice.value,now=Date.now();
+  if(!keys.length){toast('Введите API-ключ Gemini.','error');el.key.focus();return}
   if(!text){toast('Введите текст для озвучки.','error');taOf(cellList()[0]).focus();return}
   stamps=stamps.filter(t=>now-t<60000);
   const multi=lines.length>1;
@@ -740,35 +760,11 @@ async function generate(){
   const sendText=multi?lines.map(l=>/[.!?…]$/.test(l)?l:l+'.').join(PART_GAP):text;
   if(stamps.length>=maxRPM){toast('Лимит запросов в минуту исчерпан. Подождите.','error');return}
   if(now<cdEnd){toast('Подождите '+((cdEnd-now)/1000).toFixed(1)+' сек.','warning');return}
-  checkDayReset();
-  if(dayLimit&&dayCount>=dayLimit&&dayResetAt>now){
-    const left=dayResetAt-now,hh=Math.floor(left/3600000),mm=Math.floor((left%3600000)/60000);
-    toast(`Дневная квота Gemini исчерпана (${dayCount} из ${dayLimit}). Сброс через ${hh}ч ${mm}м.`,'error');
-    return;
-  }
 
   stamps.push(now);cdEnd=now+COOLDOWN;tick();
   setBusy(true);toast('Отправка запроса…');
   try{
-    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-goog-api-key':key},
-      body:JSON.stringify({
-        contents:[{parts:[{text:sendText}]}],
-        generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}}
-      })
-    });
-    // Каждый дошедший до API запрос расходует дневную квоту — считаем его, даже если
-    // дальше окажется ошибкой (сама оценка грубая, точные limit/сброс подтянутся
-    // из текста ошибки 429, если и когда она случится).
-    dayCount++;saveDay();
-    if(!res.ok){
-      let m='Ошибка сервера ('+res.status+')';
-      try{m=(await res.json()).error.message||m}catch(e){}
-      if(res.status===429)parseQuotaError(m);
-      throw new Error(m);
-    }
-    const data=await res.json();
+    const data=await callGemini(sendText,voice);
     let part=null;
     for(const c of data.candidates||[])for(const p of c.content?.parts||[])if(p.inlineData?.data&&!part)part=p.inlineData;
     if(!part)throw new Error('API не вернуло аудио.');
@@ -907,13 +903,31 @@ function render(){
     au.onpause=()=>ic.setAttribute('d',PLAY);
     au.onended=()=>{au.currentTime=0;paint();tm.textContent=fmt(it.dur)};
     d.querySelector('.pl').onclick=()=>{if(au.paused){items.forEach(o=>o!==it&&o.au.pause());au.play()}else au.pause()};
-    d.querySelector('.wf').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();au.currentTime=(e.clientX-r.left)/r.width*(au.duration||it.dur);paint()};
+    d.querySelector('.wf').onclick=e=>{
+      const r=e.currentTarget.getBoundingClientRect();
+      au.currentTime=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*(au.duration||it.dur);
+      paint();
+      items.forEach(o=>o!==it&&o.au.pause());
+      au.play().catch(()=>{});
+    };
     d.querySelector('.sv').onclick=()=>saveFile(i);
     it.btn=d.querySelector('.pl');
     res.appendChild(d);
   });
   const pw=$('pw');
-  if(pw)pw.onclick=e=>{const i=e.target.dataset&&+e.target.dataset.i;if(i>=0&&items[i])items[i].btn.click()};
+  // Клик по общему «Плану разрезки» перематывает не с начала нужной части, а ровно
+  // в ту позицию, по которой кликнули, — и сразу начинает воспроизведение оттуда.
+  if(pw)pw.onclick=e=>{
+    const r=pw.getBoundingClientRect();
+    const frac=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    const framePos=frac*plan.n;
+    const i=items.findIndex(o=>framePos>=o.r[0]&&framePos<o.r[1]);
+    if(i<0)return;
+    const it=items[i],local=(framePos-it.r[0])/(it.r[1]-it.r[0]);
+    items.forEach(o=>{if(o!==it)o.au.pause()});
+    it.au.currentTime=local*(it.au.duration||it.dur);
+    it.au.play().catch(()=>{});
+  };
 }
 
 function fileName(t,pre){
@@ -959,9 +973,9 @@ el.fmt.addEventListener('change',onFmt);
 try{const f=localStorage.getItem('gtts_fmt');if(f==='mp3'||f==='wav')el.fmt.value=f}catch(e){}
 onFmt();
 $('reset').onclick=()=>{
-  if(!confirm('Удалить сохранённые ключ, голос, тариф и язык?'))return;
-  ['gtts_key','gtts_voice','gtts_tier','gtts_lang','gtts_mode','gtts_fmt','gtts_kbps','gtts_startnum'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
-  el.key.value='';el.voice.selectedIndex=0;el.tier.value='15';maxRPM=15;el.startNum.value='1';
+  if(!confirm('Удалить сохранённые голос и язык? (ключи API это не затронет — удаляйте их по одному крестиком)'))return;
+  ['gtts_voice','gtts_tier','gtts_lang','gtts_mode','gtts_fmt','gtts_kbps','gtts_startnum'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
+  el.key.value='';el.voice.selectedIndex=0;maxRPM=15;el.startNum.value='1';
   setChip('');save('gtts_lang','');
   try{localStorage.removeItem('gtts_lang')}catch(e){}
   setCells(['']);el.fmt.value='wav';onFmt();try{localStorage.removeItem('gtts_mode');localStorage.removeItem('gtts_fmt')}catch(e){}
